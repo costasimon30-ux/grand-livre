@@ -231,6 +231,24 @@
   .bar-fill{height:100%; border-radius:var(--radius-pill);}
   .bar-row .amt{text-align:right; white-space:nowrap;}
 
+  /* Récapitulatif des récurrences */
+  .rec-summary{
+    padding:20px 24px; margin-bottom:16px;
+    display:flex; flex-wrap:wrap; align-items:baseline; gap:10px 36px;
+    background:
+      radial-gradient(100% 160% at 100% 0%, var(--caramel-soft) 0%, transparent 60%),
+      var(--bg-raised);
+  }
+  .rec-figure{display:flex; flex-direction:column; gap:3px;}
+  .rec-figure .hero-label{font-size:11px;}
+  .rec-amount{font-size:21px; font-weight:500;}
+  .rec-amount.pos{color:var(--forest);}
+  .rec-amount.neg{color:var(--clay);}
+  .rec-note{flex-basis:100%; margin:2px 0 0;}
+  @media (max-width:820px){
+    .rec-summary{gap:14px 28px; padding:18px 20px;}
+  }
+
   .empty{padding:26px 10px; text-align:center; color:var(--ink-faint); font-size:13.5px;}
   .empty svg{width:26px; height:26px; margin-bottom:8px; opacity:.6;}
 
@@ -964,11 +982,48 @@ function renderRecurringPage(){
   var c = document.getElementById('content');
   var html = '<div class="page-head"><div><p class="muted">Des dépenses ou revenus qui reviennent chaque mois — ils n’entament ton solde qu’à partir de leur date d’échéance, jamais avant.</p></div>'+
     '<button class="btn btn-primary" data-act="toggle-recurring-form">'+icon('plus')+' Nouvelle récurrence</button></div>';
+  html += '<div id="recurring-summary"></div>';
   html += '<div id="recurring-form-slot"></div>';
   html += '<div id="recurring-list"></div>';
   c.innerHTML = html;
+  renderRecurringSummary();
   renderRecurringForm();
   renderRecurringList();
+}
+/* Récapitulatif mensuel des récurrences. Les règles en pause sont exclues des
+   totaux — elles ne sont pas prélevées — mais signalées, pour qu'un total qui
+   « manque » quelque chose s'explique de lui-même. */
+function renderRecurringSummary(){
+  var wrap = document.getElementById('recurring-summary');
+  if(!wrap) return;
+  var rules = state.recurring || [];
+  if(rules.length === 0){ wrap.innerHTML = ''; return; }
+
+  var expense = 0, income = 0, paused = 0;
+  rules.forEach(function(r){
+    if(!r.active){ paused++; return; }
+    if(r.type === 'income') income += r.amount; else expense += r.amount;
+  });
+  var net = income - expense;
+
+  var cells = '';
+  cells += '<div class="rec-figure">'+
+    '<span class="hero-label">Dépenses chaque mois</span>'+
+    '<span class="rec-amount mono neg">-'+fmtMoney(expense)+'</span></div>';
+  if(income > 0){
+    cells += '<div class="rec-figure">'+
+      '<span class="hero-label">Revenus chaque mois</span>'+
+      '<span class="rec-amount mono pos">+'+fmtMoney(income)+'</span></div>';
+    cells += '<div class="rec-figure">'+
+      '<span class="hero-label">Net</span>'+
+      '<span class="rec-amount mono '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</span></div>';
+  }
+
+  wrap.innerHTML = '<div class="card rec-summary">'+cells+
+    '<p class="faint small rec-note">'+
+      (paused ? paused+' récurrence'+(paused>1?'s':'')+' en pause, non comptée'+(paused>1?'s':'')+' ici.'
+              : 'Montants engagés chaque mois, hors échéances déjà passées.')+
+    '</p></div>';
 }
 function renderRecurringForm(){
   var slot = document.getElementById('recurring-form-slot');
@@ -1796,7 +1851,7 @@ document.addEventListener('click', function(e){
   else if(act==='edit-account'){ state.editAccountId = btn.getAttribute('data-id'); state.showAccountForm = true; renderAccountForm(); document.getElementById('account-form-slot').scrollIntoView({behavior:'smooth', block:'start'}); }
   else if(act==='edit-tx'){ state.editTxId = btn.getAttribute('data-id'); state.showTxForm = true; renderTransactionForm(); document.getElementById('tx-form-slot').scrollIntoView({behavior:'smooth', block:'start'}); }
   else if(act==='edit-recurring'){ state.editRecurringId = btn.getAttribute('data-id'); state.showRecurringForm = true; renderRecurringForm(); document.getElementById('recurring-form-slot').scrollIntoView({behavior:'smooth', block:'start'}); }
-  else if(act==='toggle-recurring-active'){ toggleRecurringActive(btn.getAttribute('data-id')); renderRecurringList(); }
+  else if(act==='toggle-recurring-active'){ toggleRecurringActive(btn.getAttribute('data-id')); renderRecurringList(); renderRecurringSummary(); }
   else if(act==='del-account'){
     var id = btn.getAttribute('data-id'); var key = 'acc:'+id;
     if(armed.has(key)){ armed.delete(key); deleteAccount(id); renderAccountsGrid(); }
@@ -1809,7 +1864,7 @@ document.addEventListener('click', function(e){
   }
   else if(act==='del-recurring'){
     var rid = btn.getAttribute('data-id'); var rkey = 'rec:'+rid;
-    if(armed.has(rkey)){ armed.delete(rkey); deleteRecurring(rid); renderRecurringList(); }
+    if(armed.has(rkey)){ armed.delete(rkey); deleteRecurring(rid); renderRecurringList(); renderRecurringSummary(); }
     else { armed.add(rkey); renderRecurringList(); setTimeout(function(){ if(armed.has(rkey)){ armed.delete(rkey); renderRecurringList(); } }, 4000); }
   }
   else if(act==='export-json'){ exportData(); }
@@ -1929,6 +1984,7 @@ document.addEventListener('submit', function(e){
     state.showRecurringForm = false; state.editRecurringId = null;
     renderRecurringForm();
     renderRecurringList();
+    renderRecurringSummary();
   }
 });
 
