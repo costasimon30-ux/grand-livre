@@ -246,6 +246,20 @@
   .rec-amount.neg{color:var(--clay);}
   .rec-note{flex-basis:100%; margin:2px 0 0;}
 
+  /* Détail par compte dans le récapitulatif */
+  .rec-accounts{
+    flex-basis:100%; display:flex; flex-wrap:wrap; gap:8px 22px;
+    padding-top:14px; margin-top:4px; border-top:1px solid var(--line);
+  }
+  .rec-account{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-soft);}
+  .rec-account .mono{font-weight:500;}
+  .rec-account .mono.pos{color:var(--forest);}
+  .rec-account .mono.neg{color:var(--clay);}
+
+  /* Sélecteur de regroupement */
+  .rec-groupby{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:0 0 14px 4px;}
+  .rec-groupby .faint{margin-right:2px;}
+
   /* Groupes de récurrences : une carte par catégorie */
   .rec-group{padding:6px 22px 8px; margin-bottom:12px;}
   .rec-group-head{
@@ -253,6 +267,9 @@
     padding:14px 0 10px; border-bottom:1px solid var(--line);
   }
   .rec-group-name{
+    /* inline-flex : sans ça la pastille de couleur, simple span en ligne,
+       ignore sa largeur et sa hauteur et n'apparaît pas */
+    display:inline-flex; align-items:center; gap:7px;
     font-size:11.5px; font-weight:700; text-transform:uppercase; letter-spacing:.09em;
     color:var(--ink-faint);
   }
@@ -463,6 +480,7 @@ function icon(name){
 /* ---------- state ---------- */
 var STORAGE_KEY = 'grand-livre-data-v1';
 var SYNC_KEY = 'grand-livre-sync-v1';
+var UI_KEY = 'grand-livre-ui-v1';
 var state = {
   page:'dashboard',
   accounts:[],
@@ -478,7 +496,8 @@ var state = {
   showAccountForm:false, editAccountId:null,
   showTxForm:false, editTxId:null,
   showRecurringForm:false, editRecurringId:null,
-  txFilters:{account:'all', category:'all', type:'all', search:''}
+  txFilters:{account:'all', category:'all', type:'all', search:''},
+  recGroupBy:'category'   /* 'category' | 'account' — préférence d'affichage, propre à l'appareil */
 };
 var armed = new Set();
 
@@ -999,12 +1018,27 @@ function renderRecurringPage(){
     '<button class="btn btn-primary" data-act="toggle-recurring-form">'+icon('plus')+' Nouvelle récurrence</button></div>';
   html += '<div id="recurring-summary"></div>';
   html += '<div id="recurring-form-slot"></div>';
+  html += '<div class="rec-groupby" id="rec-groupby"></div>';
   html += '<div id="recurring-list"></div>';
   c.innerHTML = html;
+  renderGroupByToggle();
   renderRecurringSummary();
   renderRecurringForm();
   renderRecurringList();
 }
+function renderGroupByToggle(){
+  var el = document.getElementById('rec-groupby');
+  if(!el) return;
+  if((state.recurring||[]).length === 0){ el.innerHTML = ''; return; }
+  var opts = [['category','Par catégorie'],['account','Par compte']];
+  el.innerHTML = '<span class="faint small">Ranger&nbsp;:</span>'+
+    opts.map(function(o){
+      var on = (state.recGroupBy === o[0]);
+      return '<button class="btn btn-sm '+(on?'btn-primary':'btn-ghost')+'" '+
+        'data-act="rec-groupby" data-mode="'+o[0]+'"'+(on?' aria-current="true"':'')+'>'+o[1]+'</button>';
+    }).join('');
+}
+
 /* Récapitulatif mensuel des récurrences. Les règles en pause sont exclues des
    totaux — elles ne sont pas prélevées — mais signalées, pour qu'un total qui
    « manque » quelque chose s'explique de lui-même. */
@@ -1034,7 +1068,30 @@ function renderRecurringSummary(){
       '<span class="rec-amount mono '+(net>=0?'pos':'neg')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</span></div>';
   }
 
-  wrap.innerHTML = '<div class="card rec-summary">'+cells+
+  /* Détail par compte : combien part (ou rentre) sur chacun chaque mois.
+     C'est ce chiffre qui dit combien laisser sur un compte donné. */
+  var perAccount = {};
+  rules.forEach(function(r){
+    if(!r.active) return;
+    if(!perAccount[r.accountId]) perAccount[r.accountId] = 0;
+    perAccount[r.accountId] += (r.type === 'income' ? r.amount : -r.amount);
+  });
+  var accIds = Object.keys(perAccount).sort(function(a,b){
+    return Math.abs(perAccount[b]) - Math.abs(perAccount[a]);
+  });
+  var byAccount = '';
+  if(accIds.length > 0){
+    byAccount = '<div class="rec-accounts">'+accIds.map(function(id){
+      var v = perAccount[id];
+      return '<span class="rec-account">'+
+        '<span class="dot" style="background:'+accountColor(id)+'"></span>'+
+        escapeHtml(accountName(id))+
+        '<span class="mono '+(v>=0?'pos':'neg')+'">'+(v>0?'+':(v<0?'-':''))+fmtMoney(Math.abs(v))+'</span>'+
+      '</span>';
+    }).join('')+'</div>';
+  }
+
+  wrap.innerHTML = '<div class="card rec-summary">'+cells+byAccount+
     '<p class="faint small rec-note">'+
       (paused ? paused+' récurrence'+(paused>1?'s':'')+' en pause, non comptée'+(paused>1?'s':'')+' ici.'
               : 'Montants engagés chaque mois, hors échéances déjà passées.')+
@@ -1092,15 +1149,24 @@ function renderRecurringList(){
     return;
   }
   var today = todayStr();
+  var byAccount = (state.recGroupBy === 'account');
 
-  /* Regroupement par catégorie : une carte par groupe plutôt qu'une longue
-     liste d'affilée, avec le poids mensuel de chaque catégorie en tête. */
+  /* Une carte par groupe plutôt qu'une longue liste d'affilée, avec le poids
+     mensuel de chaque groupe en tête. Le critère de regroupement suit le
+     sélecteur : par catégorie (à quoi sert l'argent) ou par compte (d'où il part). */
   var groups = {};
   rules.forEach(function(r){
-    var cat = r.category || 'Sans catégorie';
-    if(!groups[cat]) groups[cat] = {name:cat, rules:[], net:0};
-    groups[cat].rules.push(r);
-    if(r.active) groups[cat].net += (r.type==='income' ? r.amount : -r.amount);
+    var key, label, color = null;
+    if(byAccount){
+      key = r.accountId || 'sans-compte';
+      label = r.accountId ? accountName(r.accountId) : 'Compte supprimé';
+      color = r.accountId ? accountColor(r.accountId) : null;
+    } else {
+      key = label = r.category || 'Sans catégorie';
+    }
+    if(!groups[key]) groups[key] = {name:label, color:color, rules:[], net:0};
+    groups[key].rules.push(r);
+    if(r.active) groups[key].net += (r.type==='income' ? r.amount : -r.amount);
   });
 
   /* Les catégories qui pèsent le plus arrivent en premier : c'est ce qu'on
@@ -1111,7 +1177,9 @@ function renderRecurringList(){
   wrap.innerHTML = ordered.map(function(g){
     g.rules.sort(function(a,b){ return b.amount - a.amount; });
     var head = '<div class="rec-group-head">'+
-      '<span class="rec-group-name">'+escapeHtml(g.name)+'</span>'+
+      '<span class="rec-group-name">'+
+        (g.color ? '<span class="dot" style="background:'+g.color+'"></span>' : '')+
+        escapeHtml(g.name)+'</span>'+
       '<span class="rec-group-total mono '+(g.net>=0?'pos':'neg')+'">'+
         (g.net>0?'+':(g.net<0?'-':''))+fmtMoney(Math.abs(g.net))+'</span>'+
     '</div>';
@@ -1120,10 +1188,14 @@ function renderRecurringList(){
       var acc = state.accounts.find(function(a){return a.id===r.accountId;});
       var next = r.active ? nextRuleOccurrence(r, today) : null;
       var key = 'rec:'+r.id;
+      /* on ne répète pas dans la ligne ce qui titre déjà le groupe */
+      var context = byAccount
+        ? '<span class="cat-chip">'+escapeHtml(r.category)+'</span> · '
+        : (acc ? escapeHtml(acc.name)+' · ' : '');
       return '<div class="budget-row" style="grid-template-columns:1fr auto auto auto;'+(r.active?'':'opacity:.55;')+'">'+
         '<div>'+
           '<div class="budget-cat">'+escapeHtml(r.note||r.category)+'</div>'+
-          '<div class="budget-nums">le '+r.day+' de chaque mois'+(acc?(' · '+escapeHtml(acc.name)):'')+(next?(' · prochaine échéance '+fmtDate(next)):(r.active?'':' · en pause'))+'</div>'+
+          '<div class="budget-nums">'+context+'le '+r.day+' de chaque mois'+(next?(' · prochaine échéance '+fmtDate(next)):(r.active?'':' · en pause'))+'</div>'+
         '</div>'+
         '<div class="amt mono '+(r.type==='income'?'pos':'neg')+'" style="text-align:right;">'+(r.type==='income'?'+':'-')+fmtMoney(r.amount)+'</div>'+
         '<button class="icon-btn" data-act="toggle-recurring-active" data-id="'+r.id+'" title="'+(r.active?'Mettre en pause':'Réactiver')+'">'+icon(r.active?'pause':'play')+'</button>'+
@@ -1583,6 +1655,22 @@ function saveSyncSettings(){
 }
 function syncConfigured(){ return !!(sync.token && sync.owner && sync.repo && sync.path); }
 
+/* Préférences d'affichage : propres à l'appareil, jamais envoyées dans le
+   fichier de données — ton Mac peut trier par compte pendant que le téléphone
+   trie par catégorie. */
+function loadUiPrefs(){
+  try{
+    var raw = localStorage.getItem(UI_KEY);
+    if(raw){
+      var u = JSON.parse(raw);
+      if(u.recGroupBy === 'account' || u.recGroupBy === 'category') state.recGroupBy = u.recGroupBy;
+    }
+  }catch(err){}
+}
+function saveUiPrefs(){
+  try{ localStorage.setItem(UI_KEY, JSON.stringify({recGroupBy:state.recGroupBy})); }catch(err){}
+}
+
 /* ---------- appels à l'API GitHub ----------
    Le jeton ne quitte cet appareil que vers api.github.com. */
 var GH_API = 'https://api.github.com';
@@ -1913,6 +2001,15 @@ document.addEventListener('click', function(e){
   else if(act==='export-csv'){ exportCSV(); }
   else if(act==='backup-now'){ exportData(); }
   else if(act==='backup-later'){ snoozeBackupReminder(); }
+  else if(act==='rec-groupby'){
+    var mode = btn.getAttribute('data-mode');
+    if(mode !== state.recGroupBy){
+      state.recGroupBy = mode;
+      saveUiPrefs();
+      renderGroupByToggle();
+      renderRecurringList();
+    }
+  }
   else if(act==='sync-now'){ syncNow(true); }
   else if(act==='sync-forget'){
     if(armed.has('sync-forget')){
@@ -2077,6 +2174,7 @@ document.addEventListener('visibilitychange', function(){
 /* ---------- boot ---------- */
 document.querySelector('[data-act="quick-add"]').innerHTML = icon('plus')+' Nouvelle transaction';
 loadSyncSettings();
+loadUiPrefs();
 loadState();
 materializeRecurring();
 renderNav();
