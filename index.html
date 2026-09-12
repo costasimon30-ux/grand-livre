@@ -4,43 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Grand Livre</title>
-<meta name="theme-color" content="#7C6B93">
+<meta name="theme-color" content="#2A5348">
 <meta name="apple-mobile-web-app-title" content="Grand Livre">
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600;7..72,700&family=Nunito:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,400;9..144,600;9..144,700&family=Nunito:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <style>
   :root{
     color-scheme: light dark;
-    /* Lavande & miel — greige chaud, prune grisé, accents doux */
-    --bg:#F4F1F0; --bg-raised:#FFFCFB; --bg-sunken:#EAE4E8; --line:#E2DAE0;
-    --ink:#3E3644; --ink-soft:#6E6478; --ink-faint:#9A90A2;
-    --lavender:#7C6B93; --lavender-soft:#EDE7F2;
-    --honey:#A87A22; --honey-soft:#F7EBD4;
-    --rose:#A8574F; --rose-soft:#F6E0DD;
-    --shadow:0 2px 4px rgba(62,54,68,.04), 0 14px 30px -20px rgba(62,54,68,.30);
-    --radius:22px;
-    --radius-sm:14px;
+    /* Herbier — crème et sable au sol, vert profond en surface signature,
+       caramel et terre cuite en accents chauds. */
+    --bg:#F4EFD9; --bg-raised:#FEF9E1; --bg-sunken:#FAEDCD; --line:#E6DCBE;
+    --ink:#34402E; --ink-soft:#66705A; --ink-faint:#8F9683;
+    --forest:#2E5A4E; --forest-soft:#DCE6D2;
+    --caramel:#A9743F; --caramel-soft:#F7E4C6;
+    --clay:#A85C3E; --clay-soft:#F6E1D5;
+    --sage:#CDD5AE;
+    /* surface profonde : barre latérale, la touche « papier découpé » */
+    --surface-deep:#2A5348; --on-deep:#F2EFDC; --on-deep-soft:#A9C0B0; --deep-line:#3D6659;
+    --shadow:0 3px 6px rgba(52,64,46,.05), 0 20px 38px -26px rgba(52,64,46,.40);
+    --radius:26px;
+    --radius-sm:16px;
     --radius-pill:999px;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1C1820; --bg-raised:#262130; --bg-sunken:#151119; --line:#372F42;
-      --ink:#EDE7F0; --ink-soft:#B6ABBF; --ink-faint:#847A8D;
-      --lavender:#BCA9D0; --lavender-soft:#332A3D;
-      --honey:#E0B35F; --honey-soft:#3A2F1C;
-      --rose:#D8938C; --rose-soft:#3A2622;
-      --shadow:0 2px 4px rgba(0,0,0,.30), 0 16px 34px -20px rgba(0,0,0,.65);
+      --bg:#1A2B25; --bg-raised:#243A32; --bg-sunken:#142320; --line:#34493F;
+      --ink:#F0EAD2; --ink-soft:#B5C3AC; --ink-faint:#889684;
+      --forest:#9AC9AC; --forest-soft:#22392F;
+      --caramel:#D3A373; --caramel-soft:#3A2E20;
+      --clay:#E0A183; --clay-soft:#3A261E;
+      --sage:#CDD5AE;
+      --surface-deep:#152520; --on-deep:#F0EAD2; --on-deep-soft:#9FB3A5; --deep-line:#2A3F37;
+      --shadow:0 3px 6px rgba(0,0,0,.28), 0 20px 40px -26px rgba(0,0,0,.70);
     }
   }
   :root[data-theme="dark"]{
-    --bg:#1C1820; --bg-raised:#262130; --bg-sunken:#151119; --line:#372F42;
-    --ink:#EDE7F0; --ink-soft:#B6ABBF; --ink-faint:#847A8D;
-    --lavender:#BCA9D0; --lavender-soft:#332A3D;
-    --honey:#E0B35F; --honey-soft:#3A2F1C;
-    --rose:#D8938C; --rose-soft:#3A2622;
-    --shadow:0 2px 4px rgba(0,0,0,.30), 0 16px 34px -20px rgba(0,0,0,.65);
+    --bg:#1A2B25; --bg-raised:#243A32; --bg-sunken:#142320; --line:#34493F;
+    --ink:#F0EAD2; --ink-soft:#B5C3AC; --ink-faint:#889684;
+    --forest:#9AC9AC; --forest-soft:#22392F;
+    --caramel:#D3A373; --caramel-soft:#3A2E20;
+    --clay:#E0A183; --clay-soft:#3A261E;
+    --sage:#CDD5AE;
+    --surface-deep:#152520; --on-deep:#F0EAD2; --on-deep-soft:#9FB3A5; --deep-line:#2A3F37;
+    --shadow:0 3px 6px rgba(0,0,0,.28), 0 20px 40px -26px rgba(0,0,0,.70);
   }
   *{box-sizing:border-box;}
   [hidden]{display:none !important;}
@@ -49,7 +57,12 @@
     font-family:'Nunito',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     font-size:15px; line-height:1.55; -webkit-font-smoothing:antialiased;
   }
-  h1,h2,h3{font-family:'Literata',Georgia,serif; font-weight:600; text-wrap:balance; margin:0;}
+  h1,h2,h3{
+    font-family:'Fraunces',Georgia,serif; font-weight:600; text-wrap:balance; margin:0;
+    /* axes SOFT et WONK : terminaisons adoucies, italiques légèrement bancales —
+       c'est ce qui donne le côté organique plutôt que typographie de rapport */
+    font-variation-settings:'SOFT' 60, 'WONK' 1;
+  }
   .mono{font-family:'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace; font-variant-numeric:tabular-nums;}
   .muted{color:var(--ink-soft);}
   .faint{color:var(--ink-faint);}
@@ -59,23 +72,32 @@
   input,select{font-family:inherit;}
 
   .app{display:grid; grid-template-columns:232px 1fr; min-height:100vh;}
+  /* La barre latérale est la surface « papier découpé » : une bande vert profond
+     qui tient toute la hauteur, comme les panneaux de la référence. */
   .sidebar{
-    background:var(--bg-raised); border-right:1px solid var(--line);
-    padding:22px 16px; display:flex; flex-direction:column; gap:22px;
+    background:var(--surface-deep); color:var(--on-deep);
+    padding:24px 16px; display:flex; flex-direction:column; gap:24px;
     position:sticky; top:0; height:100vh;
   }
-  .brand{display:flex; align-items:center; gap:10px; padding:0 4px;}
+  .brand{display:flex; align-items:center; gap:10px; padding:0 6px;}
   .brand-mark{font-size:22px;}
-  .brand-name{font-family:'Fraunces',serif; font-weight:600; font-size:19px; letter-spacing:.2px;}
-  .nav-list{display:flex; flex-direction:column; gap:3px;}
+  .brand-name{
+    font-family:'Fraunces',serif; font-weight:600; font-size:19px; letter-spacing:.2px;
+    color:var(--on-deep); font-variation-settings:'SOFT' 60, 'WONK' 1;
+  }
+  .nav-list{display:flex; flex-direction:column; gap:4px;}
   .nav-btn{
     display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:var(--radius-pill);
-    border:none; background:transparent; color:var(--ink-soft); font-size:14px; font-weight:500;
+    border:none; background:transparent; color:var(--on-deep-soft); font-size:14px; font-weight:600;
     text-align:left; width:100%;
   }
   .nav-btn svg{width:18px; height:18px; flex:none;}
-  .nav-btn:hover{background:var(--bg-sunken); color:var(--ink);}
-  .nav-btn.active{background:var(--lavender-soft); color:var(--lavender); font-weight:600;}
+  .nav-btn:hover{background:rgba(255,255,255,.07); color:var(--on-deep);}
+  .nav-btn.active{background:var(--sage); color:#24402F; font-weight:700;}
+  /* la barre de navigation mobile reste claire : elle jouxte le contenu */
+  .topnav .nav-btn{color:var(--ink-soft);}
+  .topnav .nav-btn:hover{background:var(--bg-sunken); color:var(--ink);}
+  .topnav .nav-btn.active{background:var(--forest-soft); color:var(--forest);}
   .sidebar-foot{margin-top:auto; display:flex; flex-direction:column; gap:10px; padding:0 4px;}
 
   .main{display:flex; flex-direction:column; min-width:0;}
@@ -87,19 +109,21 @@
 
   .banner{
     margin:0 32px 0; margin-top:16px; padding:13px 18px; border-radius:var(--radius-sm);
-    background:var(--honey-soft); color:var(--honey); font-size:13.5px; display:flex; gap:10px; align-items:center;
+    background:var(--caramel-soft); color:var(--caramel); font-size:13.5px; display:flex; gap:10px; align-items:center;
   }
 
+  /* posée sur la bande vert profond : fond translucide plutôt qu'un jeton clair */
   .sync-chip{
     display:flex; align-items:center; gap:8px; padding:10px 13px; border-radius:var(--radius-pill);
-    background:var(--bg-sunken); font-size:12.5px; color:var(--ink-soft); cursor:pointer; line-height:1.35;
+    background:rgba(255,255,255,.08); font-size:12.5px; color:var(--on-deep-soft);
+    cursor:pointer; line-height:1.35;
   }
-  .sync-chip:hover{color:var(--ink);}
+  .sync-chip:hover{color:var(--on-deep); background:rgba(255,255,255,.13);}
   .sync-chip .sync-dot{width:8px; height:8px; border-radius:50%; flex:none; background:var(--ink-faint);}
-  .sync-chip.is-idle .sync-dot{background:var(--lavender);}
-  .sync-chip.is-syncing .sync-dot{background:var(--honey); animation:pulse 1.1s ease-in-out infinite;}
-  .sync-chip.is-error .sync-dot{background:var(--rose);}
-  .sync-chip.is-offline .sync-dot{background:var(--honey);}
+  .sync-chip.is-idle .sync-dot{background:var(--sage);}
+  .sync-chip.is-syncing .sync-dot{background:#D3A373; animation:pulse 1.1s ease-in-out infinite;}
+  .sync-chip.is-error .sync-dot{background:#E08A6A;}
+  .sync-chip.is-offline .sync-dot{background:#D3A373;}
   @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
   @media (prefers-reduced-motion: reduce){ .sync-chip.is-syncing .sync-dot{animation:none;} }
 
@@ -111,12 +135,12 @@
     background:var(--bg-sunken); font-size:13px; margin-bottom:16px;
   }
   .sync-state svg{width:17px; height:17px; flex:none; margin-top:1px;}
-  .sync-state.ok{color:var(--lavender);} .sync-state.warn{color:var(--honey);} .sync-state.bad{color:var(--rose);}
+  .sync-state.ok{color:var(--forest);} .sync-state.warn{color:var(--caramel);} .sync-state.bad{color:var(--clay);}
   .sync-state .sync-state-sub{display:block; color:var(--ink-faint); font-size:12.5px; margin-top:3px;}
 
   .backup-banner{
     margin:16px 32px 0; padding:15px 18px; border-radius:var(--radius-sm);
-    background:var(--bg-raised); border:1px solid var(--line); border-left:3px solid var(--honey);
+    background:var(--bg-raised); border:1px solid var(--line); border-left:3px solid var(--caramel);
     box-shadow:var(--shadow); display:flex; gap:12px; align-items:center; flex-wrap:wrap;
   }
   .backup-banner .backup-text{flex:1; min-width:210px;}
@@ -127,16 +151,16 @@
   .toast{
     position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:50;
     padding:11px 20px; border-radius:var(--radius-pill); font-size:13.5px; font-weight:600;
-    background:var(--lavender); color:#F5F8F4; box-shadow:var(--shadow); max-width:min(90vw,420px); text-align:center;
+    background:var(--forest); color:#F5F8F4; box-shadow:var(--shadow); max-width:min(90vw,420px); text-align:center;
   }
-  .toast.toast-error{background:var(--rose);}
+  .toast.toast-error{background:var(--clay);}
 
   .offline-badge{
     display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.05em; color:var(--honey); background:var(--honey-soft);
+    text-transform:uppercase; letter-spacing:.05em; color:var(--caramel); background:var(--caramel-soft);
     padding:4px 11px; border-radius:var(--radius-pill);
   }
-  .offline-badge::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--honey);}
+  .offline-badge::before{content:''; width:6px; height:6px; border-radius:50%; background:var(--caramel);}
 
   .modal-overlay{
     position:fixed; inset:0; background:rgba(10,14,12,.5); z-index:60;
@@ -150,7 +174,7 @@
     border:1px solid transparent; font-size:13.5px; font-weight:600; white-space:nowrap;
   }
   .btn svg{width:16px; height:16px;}
-  .btn-primary{background:var(--lavender); color:#F5F8F4;}
+  .btn-primary{background:var(--forest); color:#F5F8F4;}
   .btn-primary:hover{filter:brightness(1.06);}
   .btn-ghost{background:transparent; border-color:var(--line); color:var(--ink);}
   .btn-ghost:hover{background:var(--bg-sunken);}
@@ -165,7 +189,7 @@
   }
   .icon-btn svg{width:15px; height:15px;}
   .icon-btn:hover{background:var(--bg-sunken); color:var(--ink);}
-  .icon-btn.danger-armed{background:var(--rose); border-color:var(--rose); color:#fff; font-size:11px; font-weight:700; width:auto; padding:0 10px;}
+  .icon-btn.danger-armed{background:var(--clay); border-color:var(--clay); color:#fff; font-size:11px; font-weight:700; width:auto; padding:0 10px;}
 
   .page-head{display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:18px;}
   .page-head p{margin:2px 0 0;}
@@ -174,7 +198,13 @@
   .card-pad{padding:20px 22px;}
 
   /* Dashboard */
-  .hero{padding:26px 26px 22px; margin-bottom:16px;}
+  .hero{
+    padding:30px 30px 26px; margin-bottom:16px;
+    background:
+      radial-gradient(120% 140% at 100% 0%, var(--caramel-soft) 0%, transparent 55%),
+      radial-gradient(90% 120% at 0% 100%, var(--forest-soft) 0%, transparent 60%),
+      var(--bg-raised);
+  }
   .hero-label{text-transform:uppercase; letter-spacing:.09em; font-size:11.5px; font-weight:600; color:var(--ink-faint);}
   .hero-value{font-family:'IBM Plex Mono',monospace; font-size:44px; font-weight:500; margin-top:6px; letter-spacing:-.01em;}
   .hero-accounts{display:flex; flex-wrap:wrap; gap:10px 18px; margin-top:16px; padding-top:16px; border-top:1px solid var(--line);}
@@ -186,8 +216,8 @@
   .stat-tile{padding:16px 18px;}
   .stat-tile .hero-label{font-size:11px;}
   .stat-tile .stat-value{font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:500; margin-top:6px;}
-  .stat-tile.income .stat-value{color:var(--lavender);}
-  .stat-tile.expense .stat-value{color:var(--rose);}
+  .stat-tile.income .stat-value{color:var(--forest);}
+  .stat-tile.expense .stat-value{color:var(--clay);}
 
   .chart-card{padding:20px 22px 14px; margin-bottom:16px;}
   .chart-card h3{font-size:15px; margin-bottom:12px;}
@@ -213,8 +243,8 @@
   tbody td{padding:11px 10px; border-bottom:1px solid var(--line);}
   tbody tr:last-child td{border-bottom:none;}
   td.amt{text-align:right; font-family:'IBM Plex Mono',monospace; white-space:nowrap;}
-  td.amt.pos{color:var(--lavender);}
-  td.amt.neg{color:var(--rose);}
+  td.amt.pos{color:var(--forest);}
+  td.amt.neg{color:var(--clay);}
   td.actions{text-align:right; white-space:nowrap;}
   td.actions .icon-btn{margin-left:6px;}
   .cat-chip{display:inline-block; padding:3px 11px; border-radius:var(--radius-pill); background:var(--bg-sunken); font-size:12px; color:var(--ink-soft);}
@@ -231,7 +261,7 @@
     padding:11px 14px; border-radius:var(--radius-sm); border:1px solid var(--line); background:var(--bg);
     color:var(--ink); font-size:13.5px; width:100%;
   }
-  .field input:focus, .field select:focus, .type-opt input:focus + span{outline:2px solid var(--lavender); outline-offset:1px;}
+  .field input:focus, .field select:focus, .type-opt input:focus + span{outline:2px solid var(--forest); outline-offset:1px;}
   .form-actions{display:flex; gap:10px; margin-top:4px;}
   .type-toggle{display:flex; gap:8px;}
   .type-opt{position:relative;}
@@ -240,8 +270,8 @@
     display:block; padding:10px 18px; border-radius:var(--radius-pill); border:1px solid var(--line); font-size:13px; font-weight:600;
     color:var(--ink-soft); background:var(--bg);
   }
-  .type-opt input:checked + span.expense{background:var(--rose-soft); border-color:var(--rose); color:var(--rose);}
-  .type-opt input:checked + span.income{background:var(--lavender-soft); border-color:var(--lavender); color:var(--lavender);}
+  .type-opt input:checked + span.expense{background:var(--clay-soft); border-color:var(--clay); color:var(--clay);}
+  .type-opt input:checked + span.income{background:var(--forest-soft); border-color:var(--forest); color:var(--forest);}
   .swatches{display:flex; gap:8px;}
   .swatch{width:26px; height:26px; border-radius:50%; border:2px solid transparent; position:relative;}
   .swatch input{position:absolute; inset:0; opacity:0; cursor:pointer;}
@@ -249,7 +279,7 @@
 
   /* Accounts */
   .accounts-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px;}
-  .account-card{padding:20px 20px 18px; position:relative; border-top:4px solid var(--lavender);}
+  .account-card{padding:20px 20px 18px; position:relative; border-top:4px solid var(--forest);}
   .account-card .acc-type{font-size:11.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.06em;}
   .account-card .acc-name{font-size:16px; font-weight:600; margin:3px 0 10px; font-family:'Fraunces',serif;}
   .account-card .acc-balance{font-family:'IBM Plex Mono',monospace; font-size:23px;}
@@ -277,9 +307,9 @@
     font-family:'IBM Plex Mono',monospace; font-size:13px; text-align:right;
   }
   .status-tag{font-size:11px; font-weight:700; padding:3px 10px; border-radius:var(--radius-pill); text-align:center; width:fit-content;}
-  .status-ok{background:var(--lavender-soft); color:var(--lavender);}
-  .status-warn{background:var(--honey-soft); color:var(--honey);}
-  .status-over{background:var(--rose-soft); color:var(--rose);}
+  .status-ok{background:var(--forest-soft); color:var(--forest);}
+  .status-warn{background:var(--caramel-soft); color:var(--caramel);}
+  .status-over{background:var(--clay-soft); color:var(--clay);}
 
   .topnav{display:none;}
 
@@ -363,7 +393,7 @@ var INCOME_CATS = ['Salaire','Freelance','Remboursement','Cadeau','Autres revenu
 var ACCOUNT_TYPES = ['Compte courant','Livret / Épargne','Espèces','Autre'];
 /* Couleurs de compte : tons doux, assez distincts pour se reconnaître d'un
    coup d'œil, assez sourds pour rester lisibles sur fond clair comme sombre. */
-var PALETTE = ['#8E7BA6','#C9963E','#6E8CA8','#BE7C86','#7D9A77','#C08268'];
+var PALETTE = ['#2E5A4E','#D3A373','#7E8C5A','#B5674A','#5E8079','#A88B5B'];
 var NAV = [
   {id:'dashboard', label:'Vue d’ensemble', icon:'grid'},
   {id:'transactions', label:'Transactions', icon:'swap'},
@@ -785,16 +815,16 @@ function trendChartSVG(){
      et occupe la moitié de la page pour six points. */
   var svg = '<svg viewBox="0 0 '+W+' '+H+'" width="100%" style="display:block;overflow:visible;max-width:680px;margin:0 auto" role="img" aria-label="Évolution du solde sur 6 mois">';
   svg += '<defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">'+
-         '<stop offset="0%" stop-color="var(--lavender)" stop-opacity="0.28"/>'+
-         '<stop offset="100%" stop-color="var(--lavender)" stop-opacity="0.02"/></linearGradient></defs>';
+         '<stop offset="0%" stop-color="var(--forest)" stop-opacity="0.28"/>'+
+         '<stop offset="100%" stop-color="var(--forest)" stop-opacity="0.02"/></linearGradient></defs>';
   if(zeroY!==null){
     svg += '<line x1="'+padLeft+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W-padRight)+'" y2="'+zeroY.toFixed(1)+'" stroke="var(--line)" stroke-width="1"/>';
   }
   svg += '<path d="'+area+'" fill="url(#areaGrad)" stroke="none"/>';
-  svg += '<path d="'+path+'" fill="none" stroke="var(--lavender)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
+  svg += '<path d="'+path+'" fill="none" stroke="var(--forest)" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>';
   svg += labels;
-  svg += '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4.2" fill="var(--lavender)"/>';
-  svg += '<text x="'+last[0].toFixed(1)+'" y="'+(last[1]-11).toFixed(1)+'" font-size="11.5" text-anchor="end" fill="var(--lavender)" font-weight="600" font-family="IBM Plex Mono, monospace">'+escapeHtml(fmtMoney(months[n-1].value))+'</text>';
+  svg += '<circle cx="'+last[0].toFixed(1)+'" cy="'+last[1].toFixed(1)+'" r="4.2" fill="var(--forest)"/>';
+  svg += '<text x="'+last[0].toFixed(1)+'" y="'+(last[1]-11).toFixed(1)+'" font-size="11.5" text-anchor="end" fill="var(--forest)" font-weight="600" font-family="IBM Plex Mono, monospace">'+escapeHtml(fmtMoney(months[n-1].value))+'</text>';
   svg += '</svg>';
   return svg;
 }
@@ -882,7 +912,7 @@ function renderDashboard(){
   html += '<div class="stat-row">'+
     '<div class="card stat-tile income"><div class="hero-label">Revenus ce mois-ci</div><div class="stat-value mono">+'+fmtMoney(income)+'</div></div>'+
     '<div class="card stat-tile expense"><div class="hero-label">Dépenses ce mois-ci</div><div class="stat-value mono">-'+fmtMoney(expense)+'</div></div>'+
-    '<div class="card stat-tile"><div class="hero-label">Solde du mois</div><div class="stat-value mono" style="color:'+(net>=0?'var(--lavender)':'var(--rose)')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</div></div>'+
+    '<div class="card stat-tile"><div class="hero-label">Solde du mois</div><div class="stat-value mono" style="color:'+(net>=0?'var(--forest)':'var(--clay)')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</div></div>'+
   '</div>';
 
   html += '<div class="card chart-card"><h3>Évolution du solde — 6 derniers mois</h3>'+trendChartSVG()+'</div>';
@@ -891,14 +921,14 @@ function renderDashboard(){
   html += '<div class="card panel"><h3>Dépenses par catégorie</h3>'+
     (catEntries.length ? catEntries.map(function(e){
       var pct = Math.max(4, Math.round(e[1]/maxCat*100));
-      return '<div class="bar-row"><span class="faint">'+escapeHtml(e[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:var(--rose)"></div></div><span class="amt mono">'+fmtMoney(e[1])+'</span></div>';
+      return '<div class="bar-row"><span class="faint">'+escapeHtml(e[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:var(--clay)"></div></div><span class="amt mono">'+fmtMoney(e[1])+'</span></div>';
     }).join('') : '<div class="empty">Aucune dépense ce mois-ci pour le moment.</div>')+
   '</div>';
   html += '<div class="card panel"><h3>Budget du mois</h3>'+
     (budgetCats.length ? budgetCats.map(function(e){
       var pct = Math.min(100, Math.round(e[2]/e[1]*100));
       var ratio = e[2]/e[1];
-      var color = ratio>=1?'var(--rose)':(ratio>=0.85?'var(--honey)':'var(--lavender)');
+      var color = ratio>=1?'var(--clay)':(ratio>=0.85?'var(--caramel)':'var(--forest)');
       return '<div class="bar-row"><span class="faint">'+escapeHtml(e[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><span class="amt mono">'+fmtMoney(e[2])+' / '+fmtMoney(e[1])+'</span></div>';
     }).join('') : '<div class="empty">Définis des objectifs dans l’onglet Budget pour les suivre ici.</div>')+
   '</div>';
@@ -1190,7 +1220,7 @@ function renderBudgetPage(){
       var ratio = target>0 ? spent/target : 0;
       var status = target===0 ? null : (ratio>=1?'over':(ratio>=0.85?'warn':'ok'));
       var statusLabel = {over:'Dépassé', warn:'Presque atteint', ok:'Sous contrôle'}[status];
-      var color = status==='over'?'var(--rose)':(status==='warn'?'var(--honey)':'var(--lavender)');
+      var color = status==='over'?'var(--clay)':(status==='warn'?'var(--caramel)':'var(--forest)');
       return '<div class="budget-row">'+
         '<div class="budget-cat">'+escapeHtml(cat)+'</div>'+
         '<div>'+
