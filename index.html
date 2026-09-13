@@ -449,7 +449,6 @@ var NAV = [
   {id:'transactions', label:'Transactions', icon:'swap'},
   {id:'recurring', label:'Récurrent', icon:'repeat'},
   {id:'accounts', label:'Comptes', icon:'wallet'},
-  {id:'budget', label:'Budget', icon:'target'},
   {id:'settings', label:'Réglages', icon:'gear'}
 ];
 
@@ -944,11 +943,6 @@ function renderDashboard(){
   var catEntries = Object.keys(catSpend).map(function(k){return [k,catSpend[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
   var maxCat = catEntries.length ? catEntries[0][1] : 1;
 
-  var targets = state.budget.targets||{};
-  var budgetCats = Object.keys(targets).filter(function(k){return targets[k]>0;})
-    .map(function(k){ return [k, targets[k], catSpend[k]||0]; })
-    .sort(function(a,b){ return (b[2]/b[1]) - (a[2]/a[1]); }).slice(0,6);
-
   var recent = state.transactions.slice(0,6);
   var upcoming = upcomingOccurrences(5);
 
@@ -969,22 +963,12 @@ function renderDashboard(){
 
   html += '<div class="card chart-card"><h3>Évolution du solde — 6 derniers mois</h3>'+trendChartSVG()+'</div>';
 
-  html += '<div class="dash-grid">';
-  html += '<div class="card panel"><h3>Dépenses par catégorie</h3>'+
+  html += '<div class="card panel" style="margin-bottom:16px;"><h3>Dépenses par catégorie</h3>'+
     (catEntries.length ? catEntries.map(function(e){
       var pct = Math.max(4, Math.round(e[1]/maxCat*100));
       return '<div class="bar-row"><span class="faint">'+escapeHtml(e[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:var(--clay)"></div></div><span class="amt mono">'+fmtMoney(e[1])+'</span></div>';
     }).join('') : '<div class="empty">Aucune dépense ce mois-ci pour le moment.</div>')+
   '</div>';
-  html += '<div class="card panel"><h3>Budget du mois</h3>'+
-    (budgetCats.length ? budgetCats.map(function(e){
-      var pct = Math.min(100, Math.round(e[2]/e[1]*100));
-      var ratio = e[2]/e[1];
-      var color = ratio>=1?'var(--clay)':(ratio>=0.85?'var(--caramel)':'var(--forest)');
-      return '<div class="bar-row"><span class="faint">'+escapeHtml(e[0])+'</span><div class="bar-track"><div class="bar-fill" style="width:'+pct+'%;background:'+color+'"></div></div><span class="amt mono">'+fmtMoney(e[2])+' / '+fmtMoney(e[1])+'</span></div>';
-    }).join('') : '<div class="empty">Définis des objectifs dans l’onglet Budget pour les suivre ici.</div>')+
-  '</div>';
-  html += '</div>';
 
   if(upcoming.length){
     html += '<div class="card panel"><h3>Prélèvements à venir</h3>'+
