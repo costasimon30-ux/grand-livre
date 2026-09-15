@@ -246,6 +246,38 @@
   .rec-amount.neg{color:var(--clay);}
   .rec-note{flex-basis:100%; margin:2px 0 0;}
 
+  /* Compte Charge */
+  .charges-card{padding:6px 22px 14px;}
+  .charge-row{
+    display:grid; grid-template-columns:1fr auto auto; gap:12px; align-items:center;
+    padding:13px 0; border-bottom:1px solid var(--line);
+  }
+  .charge-row:last-child{border-bottom:none;}
+  .charge-name{display:flex; align-items:center; gap:9px; font-weight:600; font-size:14px; min-width:0;}
+  .charge-name .cat-chip{font-weight:500; flex:none;}
+  .charge-amount{font-size:15px; white-space:nowrap;}
+  .charge-amount.pos{color:var(--forest);}
+  .charge-amount.neg{color:var(--clay);}
+  .charge-actions{display:flex; gap:6px; align-items:center;}
+  /* lignes de saisie et de modification : mêmes colonnes que les lignes lues */
+  .charge-row-add, .charge-row-edit{
+    grid-template-columns:1fr 120px 130px auto; gap:10px; align-items:center;
+  }
+  .charge-row-add{border-top:1px solid var(--line); border-bottom:none; padding-top:16px; margin-top:2px;}
+  .charge-row-edit{background:var(--bg-sunken); border-radius:var(--radius-sm); padding:12px 14px; margin:6px 0;}
+  .charge-row input[type=text], .charge-row input[type=number], .charge-row select{
+    padding:10px 13px; border-radius:var(--radius-sm); border:1px solid var(--line);
+    background:var(--bg-raised); color:var(--ink); font-size:13.5px; font-family:inherit; width:100%;
+  }
+  .charge-row input[type=number]{font-family:'DM Mono',ui-monospace,monospace; text-align:right;}
+  @media (max-width:820px){
+    .charges-card{padding:4px 18px 14px;}
+    .charge-row-add, .charge-row-edit{grid-template-columns:1fr 1fr; }
+    .charge-row-add input[type=text], .charge-row-edit input[type=text]{grid-column:1 / -1;}
+    .charge-row-add .charge-actions, .charge-row-edit .charge-actions{grid-column:1 / -1;}
+    .charge-row-add .charge-actions .btn, .charge-row-edit .charge-actions .btn{flex:1; justify-content:center;}
+  }
+
   /* Détail par compte dans le récapitulatif */
   .rec-accounts{
     flex-basis:100%; display:flex; flex-wrap:wrap; gap:8px 22px;
@@ -449,6 +481,7 @@ var NAV = [
   {id:'transactions', label:'Transactions', icon:'swap'},
   {id:'recurring', label:'Récurrent', icon:'repeat'},
   {id:'accounts', label:'Comptes', icon:'wallet'},
+  {id:'charges', label:'Compte Charge', icon:'receipt'},
   {id:'settings', label:'Réglages', icon:'gear'}
 ];
 
@@ -468,6 +501,7 @@ function icon(name){
     pause:'<rect x="6" y="4.5" width="4" height="15" rx="1"/><rect x="14" y="4.5" width="4" height="15" rx="1"/>',
     play:'<path d="M6 4.5v15l14-7.5-14-7.5Z"/>',
     book:'<path d="M4 5.2C4 4.5 4.6 4 5.3 4H12v16H5.3c-.7 0-1.3-.5-1.3-1.2V5.2Z"/><path d="M20 5.2C20 4.5 19.4 4 18.7 4H12v16h6.7c.7 0 1.3-.5 1.3-1.2V5.2Z"/>',
+    receipt:'<path d="M6 3.2h12a.8.8 0 0 1 .8.8v16.3l-2.6-1.5-2.6 1.5-2.6-1.5-2.6 1.5-2.6-1.5V4a.8.8 0 0 1 .8-.8Z"/><path d="M9 8.2h6"/><path d="M9 12.2h6"/>',
     gear:'<circle cx="12" cy="12" r="3.1"/><path d="M19.4 14.5a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-1.7-.3 1.5 1.5 0 0 0-.9 1.4v.2a1.8 1.8 0 1 1-3.6 0v-.1a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9h-.2a1.8 1.8 0 1 1 0-3.6h.1a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.2a1.8 1.8 0 1 1 3.6 0v.1a1.5 1.5 0 0 0 .9 1.4 1.5 1.5 0 0 0 1.7-.3l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.2a1.8 1.8 0 1 1 0 3.6h-.1a1.5 1.5 0 0 0-1.4.9Z"/>',
     cloud:'<path d="M17.5 18.5H7a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.6 3.7 3.7 0 0 1-.4 7.4Z"/>',
     check:'<path d="M4.5 12.5l5 5 10-11"/>',
@@ -485,10 +519,11 @@ var state = {
   accounts:[],
   transactions:[],
   recurring:[],
+  charges:[],          /* lignes du compte charges, indépendantes des transactions */
   budget:{targets:{}, updatedAt:0},
   /* Ce qui a été supprimé, et quand. Sans cette trace, une suppression faite
      sur un appareil serait ressuscitée par l'autre à la fusion suivante. */
-  tombstones:{accounts:{}, transactions:{}, recurring:{}},
+  tombstones:{accounts:{}, transactions:{}, recurring:{}, charges:{}},
   meta:{lastExportAt:null, snoozeUntil:null},
   loaded:false,
   storageAvailable:true,
@@ -496,6 +531,7 @@ var state = {
   showTxForm:false, editTxId:null,
   showRecurringForm:false, editRecurringId:null,
   txFilters:{account:'all', category:'all', type:'all', search:''},
+  editChargeId:null,
   recGroupBy:'category'   /* 'category' | 'account' — préférence d'affichage, propre à l'appareil */
 };
 var armed = new Set();
@@ -516,7 +552,7 @@ var syncTimer = null;
 function now(){ return Date.now(); }
 function stamp(rec){ rec.updatedAt = now(); return rec; }
 function tombs(kind){
-  if(!state.tombstones) state.tombstones = {accounts:{}, transactions:{}, recurring:{}};
+  if(!state.tombstones) state.tombstones = {accounts:{}, transactions:{}, recurring:{}, charges:{}};
   if(!state.tombstones[kind]) state.tombstones[kind] = {};
   return state.tombstones[kind];
 }
@@ -622,11 +658,13 @@ function normalizeState(){
   adoptRecords(state.accounts);
   adoptRecords(state.transactions);
   adoptRecords(state.recurring);
+  if(!Array.isArray(state.charges)) state.charges = [];
+  adoptRecords(state.charges);
   if(!state.budget) state.budget = {targets:{}};
   if(!state.budget.targets) state.budget.targets = {};
   if(!state.budget.ts) state.budget.ts = {};
   if(!state.tombstones) state.tombstones = {};
-  ['accounts','transactions','recurring'].forEach(function(k){
+  ['accounts','transactions','recurring','charges'].forEach(function(k){
     if(!state.tombstones[k]) state.tombstones[k] = {};
   });
 }
@@ -638,6 +676,7 @@ function loadState(){
       state.accounts = parsed.accounts || [];
       state.transactions = parsed.transactions || [];
       state.recurring = parsed.recurring || [];
+      state.charges = parsed.charges || [];
       state.budget = parsed.budget || {targets:{}};
       state.tombstones = parsed.tombstones || null;
       state.meta = parsed.meta || {lastExportAt:null, snoozeUntil:null};
@@ -655,7 +694,7 @@ function dataPayload(){
   return {
     app:'grand-livre', formatVersion:2,
     accounts:state.accounts, transactions:state.transactions, recurring:state.recurring,
-    budget:state.budget, tombstones:state.tombstones
+    charges:state.charges, budget:state.budget, tombstones:state.tombstones
   };
 }
 function persist(opts){
@@ -728,6 +767,34 @@ function saveBudgetTarget(cat, amount){
   if(!state.budget.ts) state.budget.ts = {};
   state.budget.ts[cat] = now();
   if(persist()) showToast('Objectif enregistré.');
+}
+
+/* ---------- compte charges ---------- */
+function createCharge(data){
+  data.id = genId();
+  data.createdAt = new Date().toISOString();
+  stamp(data);
+  state.charges.push(data);
+  if(persist()) showToast('Ligne ajoutée.');
+}
+function updateCharge(id, data){
+  var c = state.charges.find(function(x){return x.id===id;});
+  if(!c) return;
+  Object.assign(c, data);
+  stamp(c);
+  if(persist()) showToast('Ligne modifiée.');
+}
+function deleteCharge(id){
+  markDeleted('charges', id);
+  state.charges = state.charges.filter(function(c){return c.id!==id;});
+  if(persist()) showToast('Ligne supprimée.');
+}
+function chargesTotals(){
+  var debit = 0, income = 0;
+  (state.charges||[]).forEach(function(c){
+    if(c.type === 'income') income += c.amount; else debit += c.amount;
+  });
+  return {debit:debit, income:income, net:income - debit};
 }
 
 /* ---------- recurring (échéances périodiques) ---------- */
@@ -891,7 +958,7 @@ function renderNav(){
   document.getElementById('nav-list-mobile').innerHTML = navHTML();
 }
 function pageTitle(p){
-  return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', budget:'Budget', settings:'Réglages'}[p];
+  return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', settings:'Réglages'}[p];
 }
 function quickAddLabel(){
   return icon('plus')+' Nouvelle transaction';
@@ -915,6 +982,7 @@ function renderPageShell(){
   else if(state.page==='transactions') renderTransactionsPage();
   else if(state.page==='recurring') renderRecurringPage();
   else if(state.page==='budget') renderBudgetPage();
+  else if(state.page==='charges') renderChargesPage();
   else if(state.page==='settings') renderSettingsPage();
 }
 function refreshCurrentPage(){ renderPageShell(); }
@@ -1392,6 +1460,90 @@ function renderBudgetPage(){
   c.innerHTML = html;
 }
 
+/* ---------- page Compte Charge ---------- */
+function renderChargesPage(){
+  var c = document.getElementById('content');
+  c.innerHTML =
+    '<div class="page-head"><div><p class="muted">Les lignes de ton compte charges. Un débit se soustrait du total, un revenu s\u2019y ajoute.</p></div></div>'+
+    '<div id="charges-summary"></div>'+
+    '<div id="charges-card"></div>';
+  renderChargesSummary();
+  renderChargesCard();
+}
+
+function renderChargesSummary(){
+  var wrap = document.getElementById('charges-summary');
+  if(!wrap) return;
+  var t = chargesTotals();
+  var n = (state.charges||[]).length;
+  wrap.innerHTML = '<div class="card rec-summary">'+
+    '<div class="rec-figure">'+
+      '<span class="hero-label">Total</span>'+
+      '<span class="rec-amount mono '+(t.net>=0?'pos':'neg')+'">'+(t.net>0?'+':(t.net<0?'-':''))+fmtMoney(Math.abs(t.net))+'</span>'+
+    '</div>'+
+    '<div class="rec-figure">'+
+      '<span class="hero-label">Débits</span>'+
+      '<span class="rec-amount mono neg">-'+fmtMoney(t.debit)+'</span>'+
+    '</div>'+
+    '<div class="rec-figure">'+
+      '<span class="hero-label">Revenus</span>'+
+      '<span class="rec-amount mono pos">+'+fmtMoney(t.income)+'</span>'+
+    '</div>'+
+    '<p class="faint small rec-note">'+n+' ligne'+(n>1?'s':'')+' dans ce compte.</p>'+
+  '</div>';
+}
+
+function chargeTypeSelect(id, value){
+  return '<select id="'+id+'" class="charge-type" name="type">'+
+    '<option value="debit"'+(value!=='income'?' selected':'')+'>Débit</option>'+
+    '<option value="income"'+(value==='income'?' selected':'')+'>Revenu</option>'+
+  '</select>';
+}
+
+function renderChargesCard(){
+  var wrap = document.getElementById('charges-card');
+  if(!wrap) return;
+  var rows = (state.charges||[]).map(function(c){
+    var key = 'chg:'+c.id;
+    /* ligne en cours de modification : elle devient éditable sur place */
+    if(state.editChargeId === c.id){
+      return '<form class="charge-row charge-row-edit" id="charge-edit-form" data-id="'+c.id+'">'+
+        '<input type="text" name="name" value="'+escapeHtml(c.name)+'" maxlength="60" required aria-label="Nom de la ligne">'+
+        chargeTypeSelect('chg-edit-type', c.type)+
+        '<input type="number" name="amount" step="0.01" min="0" value="'+escapeHtml(c.amount)+'" required aria-label="Montant">'+
+        '<div class="charge-actions">'+
+          '<button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>'+
+          '<button type="button" class="btn btn-ghost btn-sm" data-act="charge-cancel">Annuler</button>'+
+        '</div>'+
+      '</form>';
+    }
+    var signed = (c.type==='income' ? '+' : '-')+fmtMoney(c.amount);
+    return '<div class="charge-row">'+
+      '<div class="charge-name">'+escapeHtml(c.name)+
+        '<span class="cat-chip">'+(c.type==='income'?'Revenu':'Débit')+'</span></div>'+
+      '<div class="charge-amount mono '+(c.type==='income'?'pos':'neg')+'">'+signed+'</div>'+
+      '<div class="charge-actions">'+
+        '<button class="icon-btn" data-act="charge-edit" data-id="'+c.id+'" title="Modifier">'+icon('edit')+'</button>'+
+        '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="charge-del" data-id="'+c.id+'" title="Supprimer">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+
+  var empty = '<div class="empty">Aucune ligne pour le moment — ajoute la première ci-dessous.</div>';
+
+  /* la ligne de saisie reste toujours en bas : ajouter doit être immédiat */
+  var addRow = '<form class="charge-row charge-row-add" id="charge-add-form">'+
+    '<input type="text" name="name" id="chg-new-name" placeholder="Nom de la ligne" maxlength="60" required aria-label="Nom de la ligne">'+
+    chargeTypeSelect('chg-new-type', 'debit')+
+    '<input type="number" name="amount" id="chg-new-amount" step="0.01" min="0" placeholder="0,00" required aria-label="Montant">'+
+    '<div class="charge-actions">'+
+      '<button type="submit" class="btn btn-primary btn-sm">'+icon('plus')+' Ajouter</button>'+
+    '</div>'+
+  '</form>';
+
+  wrap.innerHTML = '<div class="card charges-card">'+(rows || empty)+addRow+'</div>';
+}
+
 /* ---------- page Réglages ---------- */
 function renderSyncIndicator(){
   var chip = document.getElementById('sync-chip');
@@ -1584,10 +1736,12 @@ function mergeRemoteIntoState(remote){
   var a = mergeCollection(state.accounts, tombs('accounts'), remote.accounts, rTomb.accounts);
   var t = mergeCollection(state.transactions, tombs('transactions'), remote.transactions, rTomb.transactions);
   var r = mergeCollection(state.recurring, tombs('recurring'), remote.recurring, rTomb.recurring);
+  var ch = mergeCollection(state.charges, tombs('charges'), remote.charges, rTomb.charges);
   state.accounts = a.records;
   state.transactions = t.records.sort(function(x,y){ return x.date<y.date?1:(x.date>y.date?-1:0); });
   state.recurring = r.records;
-  state.tombstones = {accounts:a.tombstones, transactions:t.tombstones, recurring:r.tombstones};
+  state.charges = ch.records;
+  state.tombstones = {accounts:a.tombstones, transactions:t.tombstones, recurring:r.tombstones, charges:ch.tombstones};
   state.budget = mergeBudget(state.budget, remote.budget);
 }
 
@@ -1607,6 +1761,7 @@ function signature(payload){
     collSig(payload.accounts, tb.accounts),
     collSig(payload.transactions, tb.transactions),
     collSig(payload.recurring, tb.recurring),
+    collSig(payload.charges, tb.charges),
     bts, btar
   ].join('||');
 }
@@ -1985,6 +2140,18 @@ document.addEventListener('click', function(e){
   else if(act==='export-csv'){ exportCSV(); }
   else if(act==='backup-now'){ exportData(); }
   else if(act==='backup-later'){ snoozeBackupReminder(); }
+  else if(act==='charge-edit'){
+    state.editChargeId = btn.getAttribute('data-id');
+    renderChargesCard();
+    var f = document.getElementById('charge-edit-form');
+    if(f) f.querySelector('input[name=name]').focus();
+  }
+  else if(act==='charge-cancel'){ state.editChargeId = null; renderChargesCard(); }
+  else if(act==='charge-del'){
+    var cid = btn.getAttribute('data-id'); var ckey = 'chg:'+cid;
+    if(armed.has(ckey)){ armed.delete(ckey); deleteCharge(cid); renderChargesCard(); renderChargesSummary(); }
+    else { armed.add(ckey); renderChargesCard(); setTimeout(function(){ if(armed.has(ckey)){ armed.delete(ckey); renderChargesCard(); } }, 4000); }
+  }
   else if(act==='rec-groupby'){
     var mode = btn.getAttribute('data-mode');
     if(mode !== state.recGroupBy){
@@ -2026,6 +2193,31 @@ document.addEventListener('change', function(e){
 
 document.addEventListener('submit', function(e){
   var form = e.target;
+  if(form.id==='charge-add-form'){
+    e.preventDefault();
+    var fa = new FormData(form);
+    var nameA = (fa.get('name')||'').trim();
+    var amtA = Math.abs(parseFloat(fa.get('amount'))||0);
+    if(!nameA || !amtA) return;
+    createCharge({name:nameA, type:fa.get('type')==='income'?'income':'debit', amount:amtA});
+    renderChargesCard();
+    renderChargesSummary();
+    var ni = document.getElementById('chg-new-name');
+    if(ni) ni.focus();
+    return;
+  }
+  if(form.id==='charge-edit-form'){
+    e.preventDefault();
+    var fe = new FormData(form);
+    var nameE = (fe.get('name')||'').trim();
+    var amtE = Math.abs(parseFloat(fe.get('amount'))||0);
+    if(!nameE || !amtE) return;
+    updateCharge(form.getAttribute('data-id'), {name:nameE, type:fe.get('type')==='income'?'income':'debit', amount:amtE});
+    state.editChargeId = null;
+    renderChargesCard();
+    renderChargesSummary();
+    return;
+  }
   if(form.id==='sync-form'){
     e.preventDefault();
     var f = new FormData(form);
