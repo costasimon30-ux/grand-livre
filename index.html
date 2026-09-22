@@ -1881,7 +1881,25 @@ var currentTransition = null;
 var transitionQueue = Promise.resolve();
 var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby']);
 
+var startupAnimation = null;
+
+function playSessionEntrance(){
+  /* sessionStorage suit la durée de vie de cet onglet, pas les changements de page. */
+  try{
+    var key = 'grand-livre-session-entered';
+    if(sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, '1');
+  }catch(err){ /* Stockage bloqué : le fondu reste facultatif. */ }
+  var app = document.getElementById('app');
+  if(motionPreference.matches || !app.animate) return;
+  startupAnimation = app.animate([{opacity:0}, {opacity:1}], {
+    duration:480, easing:'cubic-bezier(0.22, 1, 0.36, 1)'
+  });
+  startupAnimation.onfinish = startupAnimation.oncancel = function(){ startupAnimation = null; };
+}
+
 function transitionAction(btn, act){
+  if(startupAnimation) startupAnimation.cancel();
   if(currentTransition) currentTransition.skipTransition();
   /* Seules les mises à jour sont sérialisées, pas la durée des fondus :
      plusieurs clics rapides gardent leur ordre sans bloquer la navigation. */
@@ -1901,7 +1919,10 @@ function transitionAction(btn, act){
   }).catch(function(err){ console.error('[Grand Livre] Transition', err); });
 }
 motionPreference.addEventListener('change', function(){
-  if(motionPreference.matches && currentTransition) currentTransition.skipTransition();
+  if(motionPreference.matches){
+    if(currentTransition) currentTransition.skipTransition();
+    if(startupAnimation) startupAnimation.cancel();
+  }
 });
 
 document.addEventListener('click', function(e){
@@ -2153,6 +2174,7 @@ renderPageShell();
 renderBackupBanner();
 updateOfflineBadge();
 renderSyncIndicator();
+playSessionEntrance();
 if(syncConfigured()) syncNow();
 
 /* ---------- service worker ---------- */
