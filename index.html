@@ -215,7 +215,21 @@
     .content[data-page="dashboard"] .table-wrap td{padding:0;border:0;grid-column:1;}
     .content[data-page="dashboard"] .table-wrap td.amt{grid-column:2;grid-row:1/4;align-self:center;}
   }
-  @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;}}
+  /* Fondus de navigation : le cadre reste stable, seul le contenu change. */
+  @keyframes fade-out{to{opacity:0;}}
+  @keyframes fade-in{from{opacity:0;}}
+  html[data-transition-scope="content"] .content{view-transition-name:page-content;}
+  html[data-transition-scope="content"] .heading-line{view-transition-name:page-heading;}
+  ::view-transition-old(root),::view-transition-old(page-content),::view-transition-old(page-heading){animation:140ms ease-out both fade-out;}
+  ::view-transition-new(root),::view-transition-new(page-content),::view-transition-new(page-heading){animation:220ms ease-out both fade-in;}
+  html[data-transition-scope="content"]::view-transition-old(root),html[data-transition-scope="content"]::view-transition-new(root){animation:none;}
+  ::view-transition-group(*){animation-duration:220ms;}
+  ::view-transition{pointer-events:none;}
+  .btn,.icon-btn,.theme-toggle,.nav-btn,.type-opt span{transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease,opacity 140ms ease;}
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important;}
+    ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important;}
+  }
 </style>
 </head>
 <body>
@@ -1860,10 +1874,43 @@ function applyPendingImport(){
 }
 
 /* ---------- events ---------- */
+var motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+var currentTransition = null;
+var transitionQueue = Promise.resolve();
+var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby']);
+
+function transitionAction(btn, act){
+  if(currentTransition) currentTransition.skipTransition();
+  /* Seules les mises à jour sont sérialisées, pas la durée des fondus :
+     plusieurs clics rapides gardent leur ordre sans bloquer la navigation. */
+  transitionQueue = transitionQueue.then(function(){
+    if(motionPreference.matches || !document.startViewTransition){
+      handleAction(btn, act);
+      return;
+    }
+    if(currentTransition) currentTransition.skipTransition();
+    document.documentElement.dataset.transitionScope = act==='toggle-theme' ? 'theme' : 'content';
+    var transition = document.startViewTransition(function(){ handleAction(btn, act); });
+    currentTransition = transition;
+    transition.finished.catch(function(){}).then(function(){
+      if(currentTransition===transition) currentTransition = null;
+    });
+    return transition.updateCallbackDone;
+  }).catch(function(err){ console.error('[Grand Livre] Transition', err); });
+}
+motionPreference.addEventListener('change', function(){
+  if(motionPreference.matches && currentTransition) currentTransition.skipTransition();
+});
+
 document.addEventListener('click', function(e){
   var btn = e.target.closest('[data-act]');
   if(!btn) return;
   var act = btn.getAttribute('data-act');
+  if(animatedActions.has(act)) transitionAction(btn, act);
+  else handleAction(btn, act);
+});
+
+function handleAction(btn, act){
   if(act==='toggle-theme'){ state.theme = state.theme==='dark' ? 'light' : 'dark'; applyTheme(); saveUiPrefs(); }
   else if(act==='nav'){ navigateTo(btn.getAttribute('data-page')); }
   else if(act==='quick-add'){ navigateTo('transactions'); state.showTxForm = true; state.editTxId = null; renderPageShell(); document.getElementById('tf-amount') && document.getElementById('tf-amount').focus(); }
@@ -1934,7 +1981,7 @@ document.addEventListener('click', function(e){
   }
   else if(act==='confirm-import'){ applyPendingImport(); }
   else if(act==='cancel-import'){ pendingImport = null; document.getElementById('import-confirm').hidden = true; }
-});
+}
 
 document.addEventListener('change', function(e){
   if(e.target.id==='import-file-input'){
