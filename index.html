@@ -111,6 +111,9 @@
   .content[data-page="dashboard"]>.hero{grid-column:1;grid-row:1;}
   .content[data-page="dashboard"]>.chart-card{grid-column:2;grid-row:1;}
   .content[data-page="dashboard"]>.stat-row,.content[data-page="dashboard"]>.panel:last-child{grid-column:1/-1;}
+  .forecast-card{grid-column:1/-1;}
+  .type-toggle{flex-wrap:wrap;}
+  .type-opt input:checked+span.transfer{background:var(--bg-sunken);border-color:var(--ink);color:var(--ink);}
   .rec-summary{display:flex;flex-wrap:wrap;align-items:baseline;gap:20px 48px;padding:28px;margin-bottom:20px;}
   .rec-figure{display:flex;flex-direction:column;gap:8px;}
   .rec-amount{font-size:28px;letter-spacing:-.025em;}
@@ -274,7 +277,7 @@
   <div class="card modal-card">
     <h3>Importer ces données ?</h3>
     <p class="muted" id="import-summary" style="margin:8px 0;"></p>
-    <p class="faint small">Cela remplace toutes les données actuellement enregistrées sur cet appareil. Cette action ne peut pas être annulée.</p>
+    <p class="faint small">Cela remplace les données de cet appareil, y compris Compte Charge. Si la synchronisation est active, ces changements seront aussi envoyés à GitHub et aux autres appareils. Exporte une sauvegarde avant de continuer.</p>
     <div class="form-actions">
       <button class="btn btn-primary" data-act="confirm-import">Remplacer mes données</button>
       <button class="btn btn-ghost" data-act="cancel-import">Annuler</button>
@@ -393,35 +396,43 @@ function escapeHtml(s){
 }
 function uniq(arr){ return arr.filter(function(v,i){ return arr.indexOf(v)===i; }); }
 
-function signedAmount(tx){ return tx.type==='income' ? tx.amount : -tx.amount; }
+function cents(value){ return Math.round(Number(value)*100); }
+function signedAmount(tx){ return tx.type==='transfer' ? 0 : (tx.type==='income' ? tx.amount : -tx.amount); }
+function accountAmount(tx, accountId){
+  if(tx.type==='transfer') return tx.accountId===accountId ? -tx.amount : (tx.toAccountId===accountId ? tx.amount : 0);
+  return tx.accountId===accountId ? signedAmount(tx) : 0;
+}
+function transactionAccountLabel(tx){
+  return accountName(tx.accountId)+(tx.type==='transfer' ? ' → '+accountName(tx.toAccountId) : '');
+}
+function transactionAmountHTML(tx){
+  var cls = tx.type==='transfer' ? '' : (tx.type==='income' ? 'pos' : 'neg');
+  return '<td class="amt '+cls+'">'+(tx.type==='transfer' ? '' : (tx.type==='income'?'+':'−'))+fmtMoney(tx.amount)+'</td>';
+}
 
 function accountBalance(acc){
-  var sum = acc.initialBalance||0;
-  var today = todayStr();
-  state.transactions.forEach(function(tx){ if(tx.accountId===acc.id && tx.date<=today) sum += signedAmount(tx); });
-  return sum;
+  var sum = cents(acc.initialBalance||0), today = todayStr();
+  state.transactions.forEach(function(tx){ if(tx.date<=today) sum += cents(accountAmount(tx, acc.id)); });
+  return sum/100;
 }
-function totalBalance(){
-  var sum = 0;
-  var today = todayStr();
-  state.accounts.forEach(function(a){ sum += (a.initialBalance||0); });
-  state.transactions.forEach(function(tx){ if(tx.date<=today) sum += signedAmount(tx); });
-  return sum;
-}
+
+function totalBalance(){ return computeBalanceAt(todayStr()); }
+
 function computeBalanceAt(cutoffIso){
   var sum = 0;
-  state.accounts.forEach(function(a){ sum += (a.initialBalance||0); });
-  state.transactions.forEach(function(tx){ if(tx.date<=cutoffIso) sum += signedAmount(tx); });
-  return sum;
+  state.accounts.forEach(function(a){ sum += cents(a.initialBalance||0); });
+  state.transactions.forEach(function(tx){ if(tx.date<=cutoffIso) sum += cents(signedAmount(tx)); });
+  return sum/100;
 }
+
 function monthTx(monthKey, type){
   return state.transactions.filter(function(tx){ return monthKeyOf(tx.date)===monthKey && (!type || tx.type===type); });
 }
 function monthSum(monthKey, type){
-  return monthTx(monthKey, type).reduce(function(s,tx){ return s+tx.amount; },0);
+  return monthTx(monthKey, type).reduce(function(s,tx){ return s+cents(tx.amount); },0)/100;
 }
 function categorySpend(monthKey){
-  var map = {};
+  var map = Object.create(null);
   monthTx(monthKey,'expense').forEach(function(tx){ map[tx.category] = (map[tx.category]||0)+tx.amount; });
   return map;
 }
@@ -451,6 +462,69 @@ function showToast(msg, isError){
 function genId(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
   return 'id'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+}
+
+
+/* Une sauvegarde invalide est refusée avant toute modification de l'état. */
+function validatePayload(input, checkReferences){
+  function fail(message){ throw new Error('Données invalides : '+message); }
+  function object(value){return value && typeof value==='object' && !Array.isArray(value);}
+  function id(value){return typeof value==='string' && /^[A-Za-z0-9_-]+$/.test(value) && !['__proto__','constructor','prototype'].includes(value);}
+  function money(value,positive){return typeof value==='number' && Number.isFinite(value) && Number.isSafeInteger(cents(value)) && (!positive || value>0);}
+  function text(value){return typeof value==='string';}
+  function timestamp(value){return value===undefined || (typeof value==='number' && Number.isFinite(value) && value>=0);}
+  if(!object(input) || (input.app && input.app!=='grand-livre')) fail('ce fichier ne correspond pas à Grand Livre.');
+  if(input.formatVersion!==undefined && (!Number.isInteger(input.formatVersion) || input.formatVersion<1 || input.formatVersion>3)) fail('version de sauvegarde non prise en charge. Mets l’application à jour.');
+  var data=JSON.parse(JSON.stringify(input));
+  ['accounts','transactions','recurring','charges'].forEach(function(kind){
+    if(data[kind]===undefined && (kind==='recurring'||kind==='charges')) data[kind]=[];
+    if(!Array.isArray(data[kind])) fail('collection '+kind+' absente ou incorrecte.');
+    var seen=new Set();
+    data[kind].forEach(function(r){if(!object(r)||!id(r.id)||seen.has(r.id)||!timestamp(r.updatedAt)) fail('identifiant ou horodatage incorrect dans '+kind+'.');seen.add(r.id);});
+  });
+  var accounts=new Set(data.accounts.map(function(a){return a.id;}));
+  data.accounts.forEach(function(a){
+    if(!text(a.name)||!a.name.trim()||!text(a.type)||!money(a.initialBalance,false)) fail('compte ou solde incorrect.');
+    if(a.color===undefined) a.color=PALETTE[0];
+    if(typeof a.color!=='string'||!/^#[0-9a-f]{6}$/i.test(a.color)) fail('couleur de compte incorrecte.');
+  });
+  data.transactions.forEach(function(t){
+    if(!['income','expense','transfer'].includes(t.type)||!id(t.accountId)||!money(t.amount,true)||!validDate(t.date)||!text(t.category)||(t.note!==undefined&&!text(t.note))) fail('transaction incorrecte.');
+    if(t.recurringId!==undefined&&!id(t.recurringId)) fail('récurrence de transaction incorrecte.');
+    if(t.recurringMonth!==undefined&&!/^\d{4}-(0[1-9]|1[0-2])$/.test(t.recurringMonth)) fail('période incorrecte.');
+    if(t.type==='transfer'&&(!id(t.toAccountId)||t.toAccountId===t.accountId)) fail('comptes de virement incorrects.');
+    if(checkReferences&&(!accounts.has(t.accountId)||(t.type==='transfer'&&!accounts.has(t.toAccountId)))) fail('une transaction référence un compte absent.');
+  });
+  data.recurring.forEach(function(r){
+    if(!id(r.accountId)||!['income','expense'].includes(r.type)||!money(r.amount,true)||!Number.isInteger(r.day)||r.day<1||r.day>31||!validDate(r.startDate)||typeof r.active!=='boolean'||!text(r.category)||(r.note!==undefined&&!text(r.note))||(r.effectiveFrom!==undefined&&!validDate(r.effectiveFrom))) fail('récurrence incorrecte.');
+    if(checkReferences&&!accounts.has(r.accountId)) fail('une récurrence référence un compte absent.');
+  });
+  data.charges.forEach(function(c){if(!text(c.name)||!c.name.trim()||!['debit','income'].includes(c.type)||!money(c.amount,true)) fail('ligne Compte Charge incorrecte.');});
+  data.budget=data.budget||{targets:{}};if(!object(data.budget)) fail('budget incorrect.');
+  data.budget.targets=data.budget.targets||{};data.budget.ts=data.budget.ts||{};
+  if(!object(data.budget.targets)||!object(data.budget.ts)) fail('objectifs incorrects.');
+  Object.keys(data.budget.targets).forEach(function(k){if(!money(data.budget.targets[k],false)||data.budget.targets[k]<0) fail('objectif incorrect.');});
+  Object.keys(data.budget.ts).forEach(function(k){if(!timestamp(data.budget.ts[k])) fail('horodatage de budget incorrect.');});
+  data.tombstones=data.tombstones||{};if(!object(data.tombstones)) fail('suppressions incorrectes.');
+  ['accounts','transactions','recurring','charges'].forEach(function(kind){
+    var tomb=data.tombstones[kind]||{};if(!object(tomb)) fail('suppressions incorrectes.');
+    Object.keys(tomb).forEach(function(k){if(!id(k)||!timestamp(tomb[k])) fail('suppression incorrecte.');});data.tombstones[kind]=tomb;
+  });
+  return data;
+}
+
+/* Empêche une opération distante de recréer un lien vers un compte supprimé. */
+function removeDeletedAccountLinks(data){
+  var ids=new Set(data.accounts.map(function(a){return a.id;}));
+  ['transactions','recurring'].forEach(function(kind){
+    data[kind]=data[kind].filter(function(r){
+      var deleted=[r.accountId,kind==='transactions'&&r.type==='transfer'?r.toAccountId:null].filter(function(id){return id&&!ids.has(id)&&data.tombstones.accounts[id];});
+      if(!deleted.length) return true;
+      data.tombstones[kind][r.id]=Math.max.apply(null,[r.updatedAt||1].concat(deleted.map(function(id){return data.tombstones.accounts[id];})));
+      return false;
+    });
+  });
+  return data;
 }
 
 /* ---------- local storage persistence ---------- */
@@ -486,7 +560,8 @@ function loadState(){
   try{
     var raw = localStorage.getItem(STORAGE_KEY);
     if(raw){
-      var parsed = JSON.parse(raw);
+      var parsed = validatePayload(JSON.parse(raw), false);
+      parsed = removeDeletedAccountLinks(parsed);
       state.accounts = parsed.accounts || [];
       state.transactions = parsed.transactions || [];
       state.recurring = parsed.recurring || [];
@@ -506,7 +581,7 @@ function loadState(){
 }
 function dataPayload(){
   return {
-    app:'grand-livre', formatVersion:2,
+    app:'grand-livre', formatVersion:3,
     accounts:state.accounts, transactions:state.transactions, recurring:state.recurring,
     charges:state.charges, budget:state.budget, tombstones:state.tombstones
   };
@@ -544,27 +619,35 @@ function updateAccount(id, data){
   if(persist()) showToast('Compte mis à jour.');
 }
 function deleteAccount(id){
-  state.transactions.forEach(function(t){ if(t.accountId===id) markDeleted('transactions', t.id); });
-  state.transactions = state.transactions.filter(function(t){return t.accountId!==id;});
+  state.transactions.forEach(function(t){ if(t.accountId===id || t.toAccountId===id) markDeleted('transactions', t.id); });
+  state.transactions = state.transactions.filter(function(t){return t.accountId!==id && t.toAccountId!==id;});
+  state.recurring.forEach(function(r){ if(r.accountId===id) markDeleted('recurring', r.id); });
+  state.recurring = state.recurring.filter(function(r){return r.accountId!==id;});
   markDeleted('accounts', id);
   state.accounts = state.accounts.filter(function(a){return a.id!==id;});
-  if(persist()) showToast('Compte supprimé.');
+  if(persist()) showToast('Compte, opérations et récurrences liés supprimés.');
 }
+
 function createTransaction(data){
+  if(!validTransaction(data)) return false;
   data.id = genId();
   data.createdAt = new Date().toISOString();
   stamp(data);
   state.transactions.unshift(data);
   state.transactions.sort(function(a,b){ return a.date<b.date?1:(a.date>b.date?-1:0); });
-  if(persist()) showToast('Transaction ajoutée.');
+  if(persist()) showToast(data.type==='transfer' ? 'Virement enregistré.' : 'Transaction ajoutée.');
+  return true;
 }
 function updateTransaction(id, data){
   var tx = state.transactions.find(function(t){return t.id===id;});
-  if(!tx) return;
+  if(!tx || !validTransaction(data)) return false;
+  if(tx.recurringId && !tx.recurringMonth) tx.recurringMonth = tx.date.slice(0,7);
   Object.assign(tx, data);
+  if(tx.type!=='transfer') delete tx.toAccountId;
   stamp(tx);
   state.transactions.sort(function(a,b){ return a.date<b.date?1:(a.date>b.date?-1:0); });
   if(persist()) showToast('Transaction mise à jour.');
+  return true;
 }
 function deleteTransaction(id){
   markDeleted('transactions', id);
@@ -607,7 +690,7 @@ function occurrenceDate(rule, year, month){
   return year+'-'+pad2(month)+'-'+pad2(d);
 }
 function ruleOccurrencesUpTo(rule, cutoffIso){
-  var startIso = rule.startDate || todayStr();
+  var startIso = rule.effectiveFrom && rule.effectiveFrom > rule.startDate ? rule.effectiveFrom : (rule.startDate || todayStr());
   var y = parseInt(startIso.slice(0,4),10), m = parseInt(startIso.slice(5,7),10);
   var out = [], guard = 0;
   while(guard++ < 1200){
@@ -619,7 +702,7 @@ function ruleOccurrencesUpTo(rule, cutoffIso){
   return out;
 }
 function nextRuleOccurrence(rule, afterIso){
-  var startIso = rule.startDate || todayStr();
+  var startIso = rule.effectiveFrom && rule.effectiveFrom > rule.startDate ? rule.effectiveFrom : (rule.startDate || todayStr());
   var y = parseInt(startIso.slice(0,4),10), m = parseInt(startIso.slice(5,7),10);
   var guard = 0;
   while(guard++ < 1200){
@@ -631,30 +714,29 @@ function nextRuleOccurrence(rule, afterIso){
 }
 function upcomingOccurrences(limit){
   var today = todayStr();
-  var list = (state.recurring||[]).filter(function(r){return r.active;}).map(function(r){
+  var list = (state.recurring||[]).filter(function(r){return r.active && state.accounts.some(function(a){return a.id===r.accountId;});}).map(function(r){
     return {rule:r, date: nextRuleOccurrence(r, today)};
   }).filter(function(x){return x.date;});
   list.sort(function(a,b){ return a.date<b.date?-1:1; });
   return list.slice(0, limit||5);
 }
+function recurringCovered(rule, date){
+  var period = date.slice(0,7), prefix = 'rec_'+rule.id+'_'+period;
+  return state.transactions.some(function(t){
+    return t.id===prefix || t.id.indexOf(prefix+'-')===0 || (t.recurringId===rule.id && (t.recurringMonth || t.date.slice(0,7))===period);
+  }) || Object.keys(tombs('transactions')).some(function(id){return id===prefix || id.indexOf(prefix+'-')===0;});
+}
 function materializeRecurring(){
   var today = todayStr();
   var created = false;
   (state.recurring||[]).forEach(function(rule){
-    if(!rule.active) return;
+    if(!rule.active || !state.accounts.some(function(a){return a.id===rule.accountId;})) return;
     ruleOccurrencesUpTo(rule, today).forEach(function(occDate){
-      /* Identifiant déterministe : si le Mac et l'iPhone génèrent chacun de leur
-         côté l'échéance du 5 du mois, les deux portent le même identifiant et la
-         fusion n'en garde qu'une, au lieu de compter le loyer deux fois. */
-      var occId = 'rec_'+rule.id+'_'+occDate;
-      var exists = state.transactions.some(function(t){
-        return t.id===occId || (t.recurringId===rule.id && t.date===occDate);
-      });
-      /* Une échéance que l'utilisateur a supprimée à la main ne doit pas réapparaître. */
-      if(!exists && !tombs('transactions')[occId]){
+      var occId = 'rec_'+rule.id+'_'+occDate.slice(0,7);
+      if(!recurringCovered(rule, occDate)){
         state.transactions.push(stamp({
           id: occId, accountId: rule.accountId, type: rule.type, amount: rule.amount,
-          category: rule.category, date: occDate, note: rule.note||'', recurringId: rule.id,
+          category: rule.category, date: occDate, note: rule.note||'', recurringId: rule.id, recurringMonth:occDate.slice(0,7),
           createdAt: new Date().toISOString()
         }));
         created = true;
@@ -677,7 +759,9 @@ function createRecurring(data){
 function updateRecurring(id, data){
   var r = state.recurring.find(function(x){return x.id===id;});
   if(!r) return;
+  materializeRecurring();
   Object.assign(r, data);
+  r.effectiveFrom = addDays(todayStr(), 1);
   stamp(r);
   if(persist()) showToast('Récurrence mise à jour.');
   materializeRecurring();
@@ -690,10 +774,39 @@ function deleteRecurring(id){
 function toggleRecurringActive(id){
   var r = state.recurring.find(function(x){return x.id===id;});
   if(!r) return;
+  materializeRecurring();
   r.active = !r.active;
+  if(r.active) r.effectiveFrom = todayStr();
   stamp(r);
   if(persist()) showToast(r.active ? 'Récurrence réactivée.' : 'Récurrence mise en pause.');
   if(r.active) materializeRecurring();
+}
+
+function monthForecast(){
+  var today = todayStr(), y = Number(today.slice(0,4)), m = Number(today.slice(5,7));
+  var end = today.slice(0,7)+'-'+pad2(daysInMonth(y,m));
+  var future = state.transactions.filter(function(t){return t.date>today && t.date<=end;}).slice();
+  state.recurring.forEach(function(rule){
+    if(!rule.active || !state.accounts.some(function(a){return a.id===rule.accountId;})) return;
+    var date = nextRuleOccurrence(rule,today);
+    if(date && date<=end && !recurringCovered(rule,date)) future.push({accountId:rule.accountId,type:rule.type,amount:rule.amount,date:date});
+  });
+  var income=0, expense=0;
+  future.forEach(function(t){if(t.type==='income') income+=cents(t.amount); else if(t.type==='expense') expense+=cents(t.amount);});
+  return {date:end,current:totalBalance(),balance:(cents(totalBalance())+income-expense)/100,income:income/100,expense:expense/100,count:future.length,
+    accounts:state.accounts.map(function(a){
+      var balance=cents(accountBalance(a));future.forEach(function(t){balance+=cents(accountAmount(t,a.id));});
+      return {name:a.name,balance:balance/100};
+    })};
+}
+function forecastHTML(){
+  var f=monthForecast();
+  return '<section class="card rec-summary forecast-card" aria-labelledby="forecast-title">'+
+    '<div class="rec-figure"><h3 class="hero-label" id="forecast-title">Solde estimé au '+fmtDate(f.date)+'</h3><span class="rec-amount mono '+(f.balance<0?'neg':'')+'">'+fmtMoney(f.balance)+'</span></div>'+
+    '<div class="rec-figure"><span class="hero-label">Revenus à venir</span><span class="rec-amount mono pos">+'+fmtMoney(f.income)+'</span></div>'+
+    '<div class="rec-figure"><span class="hero-label">Dépenses à venir</span><span class="rec-amount mono neg">−'+fmtMoney(f.expense)+'</span></div>'+
+    '<div class="rec-accounts">'+f.accounts.map(function(a){return '<span class="rec-account">'+escapeHtml(a.name)+' <span class="mono '+(a.balance<0?'neg':'')+'">'+fmtMoney(a.balance)+'</span></span>';}).join('')+'</div>'+
+    '<p class="faint small rec-note">'+f.count+' opération(s) connue(s) à venir : saisies futures et récurrences actives. Hors dépenses non saisies et lignes « Compte Charge ».</p></section>';
 }
 
 /* ---------- chart ---------- */
@@ -702,7 +815,7 @@ function trendChartSVG(){
   var now = new Date();
   for(var i=5;i>=0;i--){
     var d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-    var key = d.toISOString().slice(0,7);
+    var key = d.getFullYear()+'-'+pad2(d.getMonth()+1);
     var isCurrent = (i===0);
     var cutoff;
     if(isCurrent){ cutoff = todayStr(); }
@@ -764,6 +877,7 @@ function pageTitle(p){
   return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', settings:'Réglages'}[p];
 }
 function navigateTo(page){
+  materializeRecurring();
   state.page = page;
   document.getElementById('page-title').textContent = pageTitle(page);
   renderNav();
@@ -827,6 +941,7 @@ function renderDashboard(){
     '<div class="card stat-tile"><div class="hero-label">Solde du mois</div><div class="stat-value mono" style="color:'+(net>=0?'var(--forest)':'var(--clay)')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</div></div>'+
   '</div>';
 
+  html += forecastHTML();
   html += '<div class="card chart-card"><h3>Évolution du solde — 6 derniers mois</h3>'+trendChartSVG()+'</div>';
 
   html += '<div class="card panel"><h3>Dépenses par catégorie</h3>'+
@@ -852,9 +967,9 @@ function renderDashboard(){
   html += '<div class="card panel"><h3>Transactions récentes</h3>'+
     (recent.length ? '<div class="table-wrap"><table><tbody>'+recent.map(function(tx){
       return '<tr><td class="faint small" style="white-space:nowrap;">'+fmtDate(tx.date)+'</td>'+
-        '<td><span class="dot" style="background:'+accountColor(tx.accountId)+';display:inline-block;margin-right:6px;"></span>'+escapeHtml(accountName(tx.accountId))+'</td>'+
+        '<td><span class="dot" style="background:'+accountColor(tx.accountId)+';display:inline-block;margin-right:6px;"></span>'+escapeHtml(transactionAccountLabel(tx))+'</td>'+
         '<td><span class="cat-chip">'+escapeHtml(tx.category)+'</span></td>'+
-        '<td class="amt '+(tx.type==='income'?'pos':'neg')+'">'+(tx.type==='income'?'+':'-')+fmtMoney(tx.amount)+'</td></tr>';
+        transactionAmountHTML(tx)+'</tr>';
     }).join('')+'</tbody></table></div>' : '<div class="empty">Pas encore de transaction.</div>')+
   '</div>';
 
@@ -920,7 +1035,7 @@ function renderRecurringSummary(){
 
   /* Détail par compte : combien part (ou rentre) sur chacun chaque mois.
      C'est ce chiffre qui dit combien laisser sur un compte donné. */
-  var perAccount = {};
+  var perAccount = Object.create(null);
   rules.forEach(function(r){
     if(!r.active) return;
     if(!perAccount[r.accountId]) perAccount[r.accountId] = 0;
@@ -982,7 +1097,7 @@ function renderRecurringForm(){
         '<div class="field"><label for="rf-start">À partir du</label><input id="rf-start" type="date" name="startDate" required value="'+startDate+'"></div>'+
         '<div class="field"><label for="rf-note">Libellé</label><input id="rf-note" type="text" name="note" maxlength="60" value="'+escapeHtml(note)+'" placeholder="Ex. Loyer, Netflix, Salaire"></div>'+
       '</div>'+
-      '<p class="faint small" style="margin:-6px 0 14px;">Si le mois est plus court que le jour choisi (ex. le 31 en février), l’échéance tombe le dernier jour du mois.</p>'+
+      '<p class="faint small" style="margin:-6px 0 14px;">Les jours absents du mois sont ramenés à son dernier jour. Les modifications prennent effet à partir de demain, sans changer les échéances déjà enregistrées. Une reprise après pause ne rattrape pas les mois suspendus.</p>'+
       categoryDatalists()+
       '<div class="form-actions">'+
         '<button type="submit" class="btn btn-primary">'+(editing?'Enregistrer':'Ajouter')+'</button>'+
@@ -1004,7 +1119,7 @@ function renderRecurringList(){
   /* Une carte par groupe plutôt qu'une longue liste d'affilée, avec le poids
      mensuel de chaque groupe en tête. Le critère de regroupement suit le
      sélecteur : par catégorie (à quoi sert l'argent) ou par compte (d'où il part). */
-  var groups = {};
+  var groups = Object.create(null);
   rules.forEach(function(r){
     var key, label, color = null;
     if(byAccount){
@@ -1104,12 +1219,12 @@ function renderAccountsGrid(){
   if(!grid) return;
   if(state.accounts.length===0){ grid.innerHTML = '<div class="card card-pad empty">Aucun compte pour le moment.</div>'; return; }
   grid.innerHTML = state.accounts.map(function(a){
-    var count = state.transactions.filter(function(t){return t.accountId===a.id;}).length;
+    var count = state.transactions.filter(function(t){return t.accountId===a.id || t.toAccountId===a.id;}).length;
     var key = 'acc:'+a.id;
     return '<div class="card account-card" style="border-top-color:'+a.color+'">'+
       '<div class="acc-actions">'+
         '<button class="icon-btn" data-act="edit-account" data-id="'+a.id+'">'+icon('edit')+'</button>'+
-        '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="del-account" data-id="'+a.id+'">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
+        '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="del-account" title="Supprime aussi les opérations, virements liés et récurrences du compte" data-id="'+a.id+'">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
       '</div>'+
       '<div class="acc-type">'+escapeHtml(a.type)+'</div>'+
       '<div class="acc-name">'+escapeHtml(a.name)+'</div>'+
@@ -1123,12 +1238,12 @@ function renderAccountsGrid(){
 function filteredTransactions(){
   var f = state.txFilters;
   return state.transactions.filter(function(tx){
-    if(f.account!=='all' && tx.accountId!==f.account) return false;
+    if(f.account!=='all' && tx.accountId!==f.account && tx.toAccountId!==f.account) return false;
     if(f.category!=='all' && tx.category!==f.category) return false;
     if(f.type!=='all' && tx.type!==f.type) return false;
     if(f.search){
       var s = f.search.toLowerCase();
-      var hay = (tx.category+' '+(tx.note||'')+' '+accountName(tx.accountId)).toLowerCase();
+      var hay = (tx.category+' '+(tx.note||'')+' '+transactionAccountLabel(tx)).toLowerCase();
       if(hay.indexOf(s)===-1) return false;
     }
     return true;
@@ -1136,13 +1251,13 @@ function filteredTransactions(){
 }
 function renderTransactionsPage(){
   var c = document.getElementById('content');
-  var allCats = uniq(allExpenseCategories().concat(allIncomeCategories()));
+  var allCats = uniq(allExpenseCategories().concat(allIncomeCategories()).concat(['Virement interne']));
   var html = '<div class="page-head"><div><p class="muted">'+state.transactions.length+' transaction(s) au total</p></div>'+
     '<button class="btn btn-primary" data-act="toggle-tx-form">'+icon('plus')+' Nouvelle transaction</button></div>';
   html += '<div id="tx-form-slot"></div>';
   html += '<div class="filters card card-pad">'+
     '<select id="f-account"><option value="all">Tous les comptes</option>'+state.accounts.map(function(a){return '<option value="'+a.id+'"'+(state.txFilters.account===a.id?' selected':'')+'>'+escapeHtml(a.name)+'</option>';}).join('')+'</select>'+
-    '<select id="f-type"><option value="all">Tous types</option><option value="income"'+(state.txFilters.type==='income'?' selected':'')+'>Revenus</option><option value="expense"'+(state.txFilters.type==='expense'?' selected':'')+'>Dépenses</option></select>'+
+    '<select id="f-type"><option value="all">Tous types</option><option value="income"'+(state.txFilters.type==='income'?' selected':'')+'>Revenus</option><option value="expense"'+(state.txFilters.type==='expense'?' selected':'')+'>Dépenses</option><option value="transfer"'+(state.txFilters.type==='transfer'?' selected':'')+'>Virements</option></select>'+
     '<select id="f-category"><option value="all">Toutes catégories</option>'+allCats.map(function(cat){return '<option value="'+escapeHtml(cat)+'"'+(state.txFilters.category===cat?' selected':'')+'>'+escapeHtml(cat)+'</option>';}).join('')+'</select>'+
     '<input type="text" id="f-search" placeholder="Rechercher…" value="'+escapeHtml(state.txFilters.search)+'">'+
   '</div>';
@@ -1166,6 +1281,7 @@ function renderTransactionForm(){
   var editing = state.editTxId ? state.transactions.find(function(t){return t.id===state.editTxId;}) : null;
   var type = editing? editing.type : 'expense';
   var accountId = editing? editing.accountId : state.accounts[0].id;
+  var toAccountId = editing ? editing.toAccountId : (state.accounts[1] ? state.accounts[1].id : '');
   var amount = editing? editing.amount : '';
   var date = editing? editing.date : todayStr();
   var category = editing? editing.category : '';
@@ -1176,14 +1292,17 @@ function renderTransactionForm(){
       '<div class="field"><label>Type</label><div class="type-toggle">'+
         '<label class="type-opt"><input type="radio" name="type" value="expense"'+(type==='expense'?' checked':'')+'><span class="expense">Dépense</span></label>'+
         '<label class="type-opt"><input type="radio" name="type" value="income"'+(type==='income'?' checked':'')+'><span class="income">Revenu</span></label>'+
+        '<label class="type-opt"><input type="radio" name="type" value="transfer"'+(type==='transfer'?' checked':'')+'><span class="transfer">Virement</span></label>'+
       '</div></div>'+
+      '<p class="faint small" id="tf-transfer-help" hidden>Un virement déplace de l’argent entre tes comptes sans modifier tes revenus ou dépenses. Deux comptes distincts sont nécessaires.</p>'+
+      '<div class="field" id="tf-destination-field" hidden><label for="tf-destination">Compte destinataire</label><select id="tf-destination" name="toAccountId">'+state.accounts.map(function(a){return '<option value="'+escapeHtml(a.id)+'"'+(a.id===toAccountId?' selected':'')+'>'+escapeHtml(a.name)+'</option>';}).join('')+'</select></div>'+
       '<div class="field-grid">'+
-        '<div class="field"><label for="tf-account">Compte</label><select id="tf-account" name="accountId">'+state.accounts.map(function(a){return '<option value="'+a.id+'"'+(a.id===accountId?' selected':'')+'>'+escapeHtml(a.name)+'</option>';}).join('')+'</select></div>'+
+        '<div class="field"><label for="tf-account" id="tf-account-label">Compte</label><select id="tf-account" name="accountId">'+state.accounts.map(function(a){return '<option value="'+a.id+'"'+(a.id===accountId?' selected':'')+'>'+escapeHtml(a.name)+'</option>';}).join('')+'</select></div>'+
         '<div class="field"><label for="tf-amount">Montant (€)</label><input id="tf-amount" type="number" step="0.01" min="0.01" name="amount" required value="'+escapeHtml(amount)+'" placeholder="0.00"></div>'+
       '</div>'+
       '<div class="field-grid">'+
         '<div class="field"><label for="tf-date">Date</label><input id="tf-date" type="date" name="date" required value="'+date+'"></div>'+
-        '<div class="field"><label for="tf-category">Catégorie</label><input id="tf-category" type="text" name="category" required list="'+(type==='income'?'dl-income':'dl-expense')+'" value="'+escapeHtml(category)+'" placeholder="Choisis ou écris une catégorie"></div>'+
+        '<div class="field" id="tf-category-field"><label for="tf-category">Catégorie</label><input id="tf-category" type="text" name="category" required list="'+(type==='income'?'dl-income':'dl-expense')+'" value="'+escapeHtml(category)+'" placeholder="Choisis ou écris une catégorie"></div>'+
       '</div>'+
       '<div class="field"><label for="tf-note">Note (optionnel)</label><input id="tf-note" type="text" name="note" maxlength="120" value="'+escapeHtml(note)+'" placeholder="Ex. Courses Monoprix"></div>'+
       categoryDatalists()+
@@ -1192,6 +1311,32 @@ function renderTransactionForm(){
         '<button type="button" class="btn btn-ghost" data-act="toggle-tx-form">Annuler</button>'+
       '</div>'+
     '</form>';
+  updateTransactionFields();
+}
+function updateTransactionFields(){
+  var form=document.getElementById('tx-form');if(!form) return;
+  var type=form.querySelector('input[name=type]:checked').value, transfer=type==='transfer';
+  document.getElementById('tf-destination-field').hidden=!transfer;
+  document.getElementById('tf-transfer-help').hidden=!transfer;
+  document.getElementById('tf-destination').disabled=!transfer;
+  document.getElementById('tf-destination').required=transfer;
+  document.getElementById('tf-category-field').hidden=transfer;
+  var category=document.getElementById('tf-category');category.required=!transfer;category.disabled=transfer;
+  category.setAttribute('list',type==='income'?'dl-income':'dl-expense');
+  document.getElementById('tf-account-label').textContent=transfer?'Compte émetteur':'Compte';
+}
+function validDate(value){
+  if(typeof value!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  var d=new Date(value+'T12:00:00');
+  return !isNaN(d.getTime()) && d.getFullYear()===Number(value.slice(0,4)) && d.getMonth()+1===Number(value.slice(5,7)) && d.getDate()===Number(value.slice(8,10));
+}
+function validTransaction(data){
+  var accountExists=function(id){return state.accounts.some(function(a){return a.id===id;});};
+  var good=['expense','income','transfer'].includes(data.type) && typeof data.amount==='number' && Number.isFinite(data.amount) && data.amount>0 && Number.isSafeInteger(cents(data.amount)) && validDate(data.date) && accountExists(data.accountId);
+  if(data.type==='transfer') good=good && accountExists(data.toAccountId) && data.toAccountId!==data.accountId;
+  else good=good && !!data.category;
+  if(!good) showToast('Vérifie la date, le montant et les comptes. Un virement nécessite deux comptes distincts.',true);
+  return good;
 }
 function renderTransactionsTable(){
   var card = document.getElementById('tx-table-card');
@@ -1208,10 +1353,10 @@ function renderTransactionsTable(){
       var key = 'tx:'+tx.id;
       return '<tr>'+
         '<td class="mono small">'+fmtDate(tx.date)+'</td>'+
-        '<td><span class="dot" style="background:'+accountColor(tx.accountId)+';display:inline-block;margin-right:6px;"></span>'+escapeHtml(accountName(tx.accountId))+'</td>'+
+        '<td><span class="dot" style="background:'+accountColor(tx.accountId)+';display:inline-block;margin-right:6px;"></span>'+escapeHtml(transactionAccountLabel(tx))+'</td>'+
         '<td><span class="cat-chip">'+escapeHtml(tx.category)+'</span></td>'+
         '<td class="faint">'+(tx.recurringId?'<span class="rec-badge" title="Générée automatiquement par une récurrence">'+icon('repeat')+'</span>':'')+escapeHtml(tx.note||'—')+'</td>'+
-        '<td class="amt '+(tx.type==='income'?'pos':'neg')+'">'+(tx.type==='income'?'+':'-')+fmtMoney(tx.amount)+'</td>'+
+        transactionAmountHTML(tx)+
         '<td class="actions">'+
           '<button class="icon-btn" data-act="edit-tx" data-id="'+tx.id+'">'+icon('edit')+'</button>'+
           '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="del-tx" data-id="'+tx.id+'">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
@@ -1337,7 +1482,7 @@ function renderSettingsPage(){
     '</div>'+
     '<div class="card card-pad settings-section">'+
       '<h3>Sauvegarde manuelle</h3>'+
-      '<p class="lead">Un fichier de secours à garder de côté, indépendamment de GitHub. L’import remplace tout ce qui est enregistré sur cet appareil.</p>'+
+      '<p class="lead">Un fichier de secours à garder de côté, indépendamment de GitHub. L’import remplace les données locales et propage les changements si la synchronisation est active.</p>'+
       '<div class="form-actions" style="flex-wrap:wrap;">'+
         '<button class="btn btn-ghost" data-act="export-json">Exporter mes données (JSON)</button>'+
         '<label class="btn btn-ghost" id="import-label" style="cursor:pointer;">Importer des données'+
@@ -1419,9 +1564,9 @@ function downloadFile(filename, text, mime){
   }
 }
 function exportCSV(){
-  var rows = [['Date','Compte','Type','Catégorie','Montant','Note']];
+  var rows = [['Date','Compte','Compte destinataire','Type','Catégorie','Montant','Note']];
   state.transactions.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(tx){
-    rows.push([tx.date, accountName(tx.accountId), tx.type==='income'?'Revenu':'Dépense', tx.category, (tx.type==='income'?'':'-')+tx.amount.toFixed(2), tx.note||'']);
+    rows.push([tx.date, accountName(tx.accountId), tx.type==='transfer'?accountName(tx.toAccountId):'', tx.type==='transfer'?'Virement':(tx.type==='income'?'Revenu':'Dépense'), tx.category, (tx.type==='expense'?'-':'')+tx.amount.toFixed(2), tx.note||'']);
   });
   var csv = rows.map(function(r){
     return r.map(function(v){
@@ -1491,18 +1636,17 @@ function mergeBudget(localB, remoteB){
 }
 
 function mergeRemoteIntoState(remote){
-  remote = remote || {};
-  var rTomb = remote.tombstones || {};
-  var a = mergeCollection(state.accounts, tombs('accounts'), remote.accounts, rTomb.accounts);
-  var t = mergeCollection(state.transactions, tombs('transactions'), remote.transactions, rTomb.transactions);
-  var r = mergeCollection(state.recurring, tombs('recurring'), remote.recurring, rTomb.recurring);
-  var ch = mergeCollection(state.charges, tombs('charges'), remote.charges, rTomb.charges);
-  state.accounts = a.records;
-  state.transactions = t.records.sort(function(x,y){ return x.date<y.date?1:(x.date>y.date?-1:0); });
-  state.recurring = r.records;
-  state.charges = ch.records;
-  state.tombstones = {accounts:a.tombstones, transactions:t.tombstones, recurring:r.tombstones, charges:ch.tombstones};
-  state.budget = mergeBudget(state.budget, remote.budget);
+  remote=validatePayload(remote,false);
+  var rTomb=remote.tombstones;
+  var a=mergeCollection(state.accounts,tombs('accounts'),remote.accounts,rTomb.accounts);
+  var t=mergeCollection(state.transactions,tombs('transactions'),remote.transactions,rTomb.transactions);
+  var r=mergeCollection(state.recurring,tombs('recurring'),remote.recurring,rTomb.recurring);
+  var ch=mergeCollection(state.charges,tombs('charges'),remote.charges,rTomb.charges);
+  var merged=removeDeletedAccountLinks({accounts:a.records,transactions:t.records,recurring:r.records,charges:ch.records,
+    tombstones:{accounts:a.tombstones,transactions:t.tombstones,recurring:r.tombstones,charges:ch.tombstones},budget:mergeBudget(state.budget,remote.budget)});
+  merged=validatePayload(merged,true);
+  state.accounts=merged.accounts;state.transactions=merged.transactions.sort(function(x,y){return x.date<y.date?1:(x.date>y.date?-1:0);});
+  state.recurring=merged.recurring;state.charges=merged.charges;state.tombstones=merged.tombstones;state.budget=merged.budget;
 }
 
 /* Empreinte stable d'un jeu de données : sert à savoir si la fusion a changé
@@ -1815,21 +1959,22 @@ function importDataFromFile(file){
   reader.onload = function(){
     try{
       var data = JSON.parse(reader.result);
-      if(!data || typeof data !== 'object') throw new Error('format invalide');
+      data = validatePayload(data, true);
       var imp = {
         accounts: Array.isArray(data.accounts) ? data.accounts : [],
         transactions: Array.isArray(data.transactions) ? data.transactions : [],
         recurring: Array.isArray(data.recurring) ? data.recurring : [],
+        charges: Array.isArray(data.charges) ? data.charges : [],
         budget: (data.budget && typeof data.budget==='object') ? data.budget : {targets:{}},
         tombstones: (data.tombstones && typeof data.tombstones==='object') ? data.tombstones : null
       };
       if(!imp.budget.targets) imp.budget.targets = {};
       pendingImport = imp;
       document.getElementById('import-summary').textContent =
-        imp.accounts.length+' compte(s), '+imp.transactions.length+' transaction(s), '+imp.recurring.length+' récurrence(s) trouvés dans ce fichier.';
+        imp.accounts.length+' compte(s), '+imp.transactions.length+' transaction(s), '+imp.recurring.length+' récurrence(s), '+imp.charges.length+' ligne(s) Compte Charge trouvés dans ce fichier.';
       document.getElementById('import-confirm').hidden = false;
     } catch(err){
-      showToast("Impossible de lire ce fichier : format invalide ou corrompu.", true);
+      showToast("Impossible de lire ce fichier : "+err.message, true);
     }
   };
   reader.onerror = function(){ showToast("Impossible de lire ce fichier.", true); };
@@ -1837,6 +1982,7 @@ function importDataFromFile(file){
 }
 function applyPendingImport(){
   if(!pendingImport) return;
+  var previous = JSON.parse(JSON.stringify(dataPayload()));
   var t = now();
 
   /* L'import est un geste délibéré : il doit gagner la fusion suivante. On date
@@ -1844,7 +1990,7 @@ function applyPendingImport(){
      qui existait ici sans figurer dans le fichier — sans quoi la synchro
      rapatrierait depuis GitHub les lignes que l'import voulait justement
      remplacer. */
-  ['accounts','transactions','recurring'].forEach(function(kind){
+  ['accounts','transactions','recurring','charges'].forEach(function(kind){
     var importedIds = {};
     pendingImport[kind].forEach(function(r){ r.updatedAt = t; if(r.id) importedIds[r.id] = 1; });
     var graveyard = tombs(kind);
@@ -1860,9 +2006,12 @@ function applyPendingImport(){
   state.accounts = pendingImport.accounts;
   state.transactions = pendingImport.transactions;
   state.recurring = pendingImport.recurring;
+  state.charges = pendingImport.charges;
+  var previousCategories=Object.keys(state.budget.targets||{}).concat(Object.keys(state.budget.ts||{}));
   state.budget = pendingImport.budget;
   if(!state.budget.ts) state.budget.ts = {};
-  Object.keys(state.budget.targets||{}).forEach(function(cat){ state.budget.ts[cat] = t; });
+  previousCategories.concat(Object.keys(state.budget.targets||{})).forEach(function(cat){ state.budget.ts[cat] = t; });
+  state.transactions.sort(function(a,b){return a.date<b.date?1:(a.date>b.date?-1:0);});
 
   pendingImport = null;
   document.getElementById('import-confirm').hidden = true;
@@ -1872,6 +2021,9 @@ function applyPendingImport(){
     renderNav();
     renderPageShell();
     showToast('Données importées avec succès.');
+  } else {
+    Object.assign(state, previous);
+    renderPageShell();
   }
 }
 
@@ -1946,7 +2098,7 @@ function handleAction(btn, act){
   else if(act==='toggle-recurring-active'){ toggleRecurringActive(btn.getAttribute('data-id')); renderRecurringList(); renderRecurringSummary(); }
   else if(act==='del-account'){
     var id = btn.getAttribute('data-id'); var key = 'acc:'+id;
-    if(armed.has(key)){ armed.delete(key); deleteAccount(id); renderAccountsGrid(); }
+    if(armed.has(key)){ armed.delete(key); deleteAccount(id); renderAccountsGrid(); renderAccountForm(); }
     else { armed.add(key); renderAccountsGrid(); setTimeout(function(){ if(armed.has(key)){ armed.delete(key); renderAccountsGrid(); } }, 4000); }
   }
   else if(act==='del-tx'){
@@ -2071,7 +2223,7 @@ document.addEventListener('submit', function(e){
       initialBalance: parseFloat(fd.get('initialBalance'))||0,
       color: fd.get('color')||PALETTE[0]
     };
-    if(!data.name) return;
+    if(!data.name || !Number.isFinite(data.initialBalance) || !Number.isSafeInteger(cents(data.initialBalance))) return;
     var editId = form.getAttribute('data-edit-id');
     if(editId){ updateAccount(editId, data); } else { createAccount(data); }
     state.showAccountForm = false; state.editAccountId = null;
@@ -2089,9 +2241,10 @@ document.addEventListener('submit', function(e){
       category: (fd2.get('category')||'').trim(),
       note: (fd2.get('note')||'').trim()
     };
-    if(!data2.amount || !data2.category || !data2.accountId) return;
+    if(data2.type==='transfer'){data2.toAccountId=fd2.get('toAccountId');data2.category='Virement interne';}
+    if(!validTransaction(data2)) return;
     var editId2 = form.getAttribute('data-edit-id');
-    if(editId2){ updateTransaction(editId2, data2); } else { createTransaction(data2); }
+    if(editId2){ if(!updateTransaction(editId2, data2)) return; } else { if(!createTransaction(data2)) return; }
     state.showTxForm = false; state.editTxId = null;
     renderTransactionForm();
     renderTransactionsTable();
@@ -2109,7 +2262,7 @@ document.addEventListener('submit', function(e){
       category: (fd3.get('category')||'').trim(),
       note: (fd3.get('note')||'').trim()
     };
-    if(!data3.amount || !data3.category || !data3.accountId || !data3.startDate) return;
+    if(!data3.amount || !Number.isFinite(data3.amount) || !Number.isSafeInteger(cents(data3.amount)) || !data3.category || !data3.accountId || !validDate(data3.startDate)) return;
     var editId3 = form.getAttribute('data-edit-id');
     if(editId3){ updateRecurring(editId3, data3); } else { createRecurring(data3); }
     state.showRecurringForm = false; state.editRecurringId = null;
@@ -2122,8 +2275,7 @@ document.addEventListener('submit', function(e){
 document.addEventListener('change', function(e){
   var t = e.target;
   if(t.name==='type' && t.closest('#tx-form')){
-    var catInput = document.getElementById('tf-category');
-    if(catInput) catInput.setAttribute('list', t.value==='income'?'dl-income':'dl-expense');
+    updateTransactionFields();
   }
   if(t.name==='type' && t.closest('#recurring-form')){
     var rCatInput = document.getElementById('rf-category');
