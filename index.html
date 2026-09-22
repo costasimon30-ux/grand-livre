@@ -76,6 +76,8 @@
   .btn svg{width:15px;height:15px;flex:none;}
   .btn-primary{background:var(--action);color:var(--on-action);border-color:var(--action);}
   .btn-primary:hover{opacity:.85;}
+  :root:not([data-theme="light"]) .btn-primary{background:#383D44;color:#E3E5E8;border-color:#68717D;}
+  :root:not([data-theme="light"]) .btn-primary:not(:disabled):hover{background:#454C55;border-color:#7B8592;opacity:1;}
   .btn-ghost{background:transparent;color:var(--ink);}
   .btn-ghost:hover{background:var(--bg-sunken);}
   .btn-sm{min-height:36px;padding:8px 12px;font-size:10px;}
