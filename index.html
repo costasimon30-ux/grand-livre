@@ -149,6 +149,23 @@
   .charge-row-add,.charge-row-edit{grid-template-columns:minmax(0,1fr) 120px 130px auto;}
   .charge-row-add{padding-top:20px;}
   .charge-row-edit{background:var(--bg-sunken);padding:16px;margin:8px 0;}
+  .tx-cards{display:none;}
+  .tx-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line);}
+  .tx-card:last-child{border-bottom:0;}
+  .tx-card-title{font-size:14px;font-weight:700;overflow-wrap:anywhere;}
+  .tx-card-meta{margin:4px 0 8px;font-size:12px;color:var(--ink-faint);}
+  .tx-card-meta .dot{display:inline-block;margin-right:6px;vertical-align:1px;}
+  .tx-card-side{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between;gap:10px;}
+  .tx-card-side .amt{font-size:15px;white-space:nowrap;}
+  .tx-card-actions{display:flex;gap:6px;}
+  @media(max-width:640px){
+    .tx-cards{display:block;}
+    .tx-table{display:none;}
+    .content[data-page="transactions"] .filters{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
+    .content[data-page="transactions"] .filters input{order:-1;grid-column:1/-1;}
+    .content[data-page="transactions"] .filters #f-account{grid-column:1/-1;}
+    .content[data-page="transactions"] .filters select,.content[data-page="transactions"] .filters input{width:100%;}
+  }
   .pop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:16px;}
   .pop-card{display:flex;flex-direction:column;min-width:0;overflow:hidden;}
   .pop-card.is-wanted{border-style:dashed;}
@@ -304,7 +321,7 @@
         <div class="heading-line"><h1 id="page-title">Vue d'ensemble</h1>
         <span id="offline-badge" class="offline-badge" hidden>Hors ligne</span></div>
       </div>
-      <div class="topbar-actions"><p class="page-description">Tous tes comptes.<br>Une seule vue.</p><button class="btn btn-primary" data-act="quick-add"></button></div>
+      <div class="topbar-actions"><p class="page-description">Tous tes comptes.<br>Une seule vue.</p><button class="btn btn-primary" id="quick-add" data-act="quick-add"></button></div>
     </header>
     <div class="banner" id="db-banner" hidden></div>
     <div class="backup-banner" id="backup-banner" hidden>
@@ -940,11 +957,21 @@ function renderNav(){
   document.getElementById('nav-list').innerHTML = navHTML();
   var gear = document.getElementById('settings-btn');
   if(state.page==='settings') gear.setAttribute('aria-current','page'); else gear.removeAttribute('aria-current');
-  /* le bouton d'ajout rapide suit l'onglet : on n'ajoute pas une transaction depuis la collection */
+  /* Un seul bouton d'ajout, dans l'en-tête : il ajoute ce que l'onglet affiche. */
+  var add = QUICK_ADD[state.page], quick = document.getElementById('quick-add');
+  quick.hidden = !add;
+  if(add){ quick.setAttribute('data-act', add[0]); quick.innerHTML = icon('plus')+' '+add[1]; }
   var pops = state.page==='pops';
-  document.querySelector('[data-act="quick-add"]').innerHTML = icon('plus')+(pops?' Nouvelle Pop':' Nouvelle transaction');
   document.querySelector('.page-description').innerHTML = pops ? 'Toute la collection.<br>Une seule vue.' : 'Tous tes comptes.<br>Une seule vue.';
 }
+var QUICK_ADD = {
+  dashboard:['quick-add','Nouvelle transaction'],
+  transactions:['new-tx','Nouvelle transaction'],
+  recurring:['new-recurring','Nouvelle récurrence'],
+  accounts:['new-account','Nouveau compte'],
+  charges:['charge-focus-add','Nouvelle ligne'],
+  pops:['new-pop','Nouvelle Pop']
+};
 function pageTitle(p){
   return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', pops:'Collection Pop', settings:'Réglages'}[p];
 }
@@ -968,6 +995,7 @@ function navigateTo(page){
   setMenuOpen(false);
   materializeRecurring();
   state.page = page;
+  saveUiPrefs();   /* l'app rouvrira sur cet onglet */
   document.getElementById('page-title').textContent = pageTitle(page);
   renderNav();
   renderPageShell();
@@ -1069,8 +1097,7 @@ function renderDashboard(){
 /* ---------- recurring ---------- */
 function renderRecurringPage(){
   var c = document.getElementById('content');
-  var html = '<div class="page-head"><div><p class="muted">Des dépenses ou revenus qui reviennent chaque mois — ils n’entament ton solde qu’à partir de leur date d’échéance, jamais avant.</p></div>'+
-    '<button class="btn btn-primary" data-act="toggle-recurring-form">'+icon('plus')+' Nouvelle récurrence</button></div>';
+  var html = '<div class="page-head"><div><p class="muted">Des dépenses ou revenus qui reviennent chaque mois — ils n’entament ton solde qu’à partir de leur date d’échéance, jamais avant.</p></div></div>';
   html += '<div id="recurring-summary"></div>';
   html += '<div id="recurring-form-slot"></div>';
   html += '<div class="rec-groupby" id="rec-groupby"></div>';
@@ -1268,8 +1295,7 @@ function renderRecurringList(){
 /* ---------- accounts ---------- */
 function renderAccountsPage(){
   var c = document.getElementById('content');
-  var html = '<div class="page-head"><div><p class="muted">'+state.accounts.length+' compte(s) suivi(s)</p></div>'+
-    '<button class="btn btn-primary" data-act="toggle-account-form">'+icon('plus')+' Nouveau compte</button></div>';
+  var html = '<div class="page-head"><div><p class="muted">'+state.accounts.length+' compte(s) suivi(s)</p></div></div>';
   html += '<div id="account-form-slot"></div>';
   html += '<div class="accounts-grid" id="accounts-grid"></div>';
   c.innerHTML = html;
@@ -1342,8 +1368,7 @@ function filteredTransactions(){
 function renderTransactionsPage(){
   var c = document.getElementById('content');
   var allCats = uniq(allExpenseCategories().concat(allIncomeCategories()).concat(['Virement interne']));
-  var html = '<div class="page-head"><div><p class="muted">'+state.transactions.length+' transaction(s) au total</p></div>'+
-    '<button class="btn btn-primary" data-act="toggle-tx-form">'+icon('plus')+' Nouvelle transaction</button></div>';
+  var html = '<div class="page-head"><div><p class="muted">'+state.transactions.length+' transaction(s) au total</p></div></div>';
   html += '<div id="tx-form-slot"></div>';
   html += '<div class="filters card card-pad">'+
     '<select id="f-account"><option value="all">Tous les comptes</option>'+state.accounts.map(function(a){return '<option value="'+a.id+'"'+(state.txFilters.account===a.id?' selected':'')+'>'+escapeHtml(a.name)+'</option>';}).join('')+'</select>'+
@@ -1436,7 +1461,28 @@ function renderTransactionsTable(){
     card.innerHTML = '<div class="card-pad empty">Aucune transaction ne correspond à ces filtres.</div>';
     return;
   }
-  card.innerHTML = '<div class="table-wrap"><table><thead><tr>'+
+  /* Sur téléphone, un tableau à six colonnes déborde : on affiche les mêmes
+     lignes en cartes, et le CSS choisit l'une ou l'autre selon la largeur. */
+  var cards = '<div class="tx-cards">'+rows.map(function(tx){
+    var key = 'tx:'+tx.id;
+    var sign = tx.type==='transfer' ? '' : (tx.type==='income' ? '+' : '−');
+    var cls = tx.type==='transfer' ? '' : (tx.type==='income' ? 'pos' : 'neg');
+    return '<div class="tx-card">'+
+      '<div class="tx-card-main">'+
+        '<div class="tx-card-title">'+(tx.recurringId?'<span class="rec-badge" title="Générée automatiquement par une récurrence">'+icon('repeat')+'</span>':'')+escapeHtml(tx.note||tx.category)+'</div>'+
+        '<div class="tx-card-meta"><span class="dot" style="background:'+accountColor(tx.accountId)+'"></span>'+escapeHtml(transactionAccountLabel(tx))+' · '+fmtDate(tx.date)+'</div>'+
+        (tx.note ? '<span class="cat-chip">'+escapeHtml(tx.category)+'</span>' : '')+
+      '</div>'+
+      '<div class="tx-card-side">'+
+        '<div class="amt mono '+cls+'">'+sign+fmtMoney(tx.amount)+'</div>'+
+        '<div class="tx-card-actions">'+
+          '<button class="icon-btn" data-act="edit-tx" data-id="'+tx.id+'" aria-label="Modifier">'+icon('edit')+'</button>'+
+          '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="del-tx" data-id="'+tx.id+'" aria-label="Supprimer">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  }).join('')+'</div>';
+  card.innerHTML = cards+'<div class="table-wrap tx-table"><table><thead><tr>'+
     '<th>Date</th><th>Compte</th><th>Catégorie</th><th>Note</th><th style="text-align:right">Montant</th><th></th>'+
     '</tr></thead><tbody>'+
     rows.map(function(tx){
@@ -1883,8 +1929,7 @@ function closePopForm(){
 function renderPopsPage(){
   var c = document.getElementById('content');
   c.innerHTML =
-    '<div class="page-head"><div><p class="muted">Votre collection de figurines Funko Pop. La recherche répond pendant la frappe : pratique en magasin pour savoir si vous l’avez déjà.</p></div>'+
-      '<button class="btn btn-primary" data-act="toggle-pop-form">'+icon('plus')+' Nouvelle Pop</button></div>'+
+    '<div class="page-head"><div><p class="muted">Votre collection de figurines Funko Pop. La recherche répond pendant la frappe : pratique en magasin pour savoir si vous l’avez déjà.</p></div></div>'+
     '<div id="pop-summary"></div>'+
     '<div id="pop-form-slot"></div>'+
     '<div class="filters card card-pad">'+
@@ -2510,6 +2555,7 @@ function loadUiPrefs(){
       var u = JSON.parse(raw);
       if(u.theme === 'light' || u.theme === 'dark') state.theme = u.theme;
       if(u.recGroupBy === 'account' || u.recGroupBy === 'category') state.recGroupBy = u.recGroupBy;
+      if(NAV.some(function(n){ return n.id===u.page; })) state.page = u.page;
       if(typeof u.popRelay === 'string' && (!u.popRelay || validPhotoUrl(u.popRelay))) state.popRelay = u.popRelay;
     }
   }catch(err){}
@@ -2522,7 +2568,7 @@ function applyTheme(){
   button.setAttribute('aria-label', state.theme==='dark' ? 'Activer le thème clair' : 'Activer le thème sombre');
 }
 function saveUiPrefs(){
-  try{ localStorage.setItem(UI_KEY, JSON.stringify({recGroupBy:state.recGroupBy, theme:state.theme, popRelay:state.popRelay})); }catch(err){}
+  try{ localStorage.setItem(UI_KEY, JSON.stringify({recGroupBy:state.recGroupBy, theme:state.theme, popRelay:state.popRelay, page:state.page})); }catch(err){}
 }
 
 /* ---------- appels à l'API GitHub ----------
@@ -2840,7 +2886,7 @@ function applyPendingImport(){
 var motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 var currentTransition = null;
 var transitionQueue = Promise.resolve();
-var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby','toggle-pop-form','edit-pop','pop-add-from-search','pop-suggest-pick']);
+var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby','toggle-pop-form','edit-pop','pop-add-from-search','pop-suggest-pick','new-tx','new-recurring','new-account','new-pop']);
 
 var startupAnimation = null;
 
@@ -2905,11 +2951,22 @@ document.addEventListener('click', function(e){
   else handleAction(btn, act);
 });
 
+function focusFormSlot(slotId, fieldId){
+  var slot = document.getElementById(slotId), field = document.getElementById(fieldId);
+  if(slot && slot.scrollIntoView) slot.scrollIntoView({behavior:'smooth', block:'start'});
+  if(field) field.focus();
+}
 function handleAction(btn, act){
   if(act==='toggle-menu'){ setMenuOpen(!menuOpen()); }
   else if(act==='toggle-theme'){ state.theme = state.theme==='dark' ? 'light' : 'dark'; applyTheme(); saveUiPrefs(); }
   else if(act==='nav'){ navigateTo(btn.getAttribute('data-page')); }
-  else if(act==='quick-add' && state.page==='pops'){ openPopForm(null, null); }
+  /* Le bouton d'en-tête ouvre toujours un formulaire vierge, même si un autre
+     était ouvert ou en cours de modification : on le ferme avec « Annuler ». */
+  else if(act==='new-tx'){ state.showTxForm = true; state.editTxId = null; renderTransactionForm(); focusFormSlot('tx-form-slot', 'tf-amount'); }
+  else if(act==='new-recurring'){ state.showRecurringForm = true; state.editRecurringId = null; renderRecurringForm(); focusFormSlot('recurring-form-slot', 'rf-amount'); }
+  else if(act==='new-account'){ state.showAccountForm = true; state.editAccountId = null; renderAccountForm(); focusFormSlot('account-form-slot', 'af-name'); }
+  else if(act==='new-pop'){ openPopForm(null, null); }
+  else if(act==='charge-focus-add'){ var chg = document.getElementById('chg-new-name'); if(chg){ chg.scrollIntoView({behavior:'smooth', block:'center'}); chg.focus(); } }
   else if(act==='quick-add'){ navigateTo('transactions'); state.showTxForm = true; state.editTxId = null; renderPageShell(); document.getElementById('tf-amount') && document.getElementById('tf-amount').focus(); }
   else if(act==='toggle-account-form'){ state.showAccountForm = !state.showAccountForm; if(!state.showAccountForm) state.editAccountId=null; renderAccountForm(); }
   else if(act==='toggle-tx-form'){ state.showTxForm = !state.showTxForm; if(!state.showTxForm) state.editTxId=null; renderTransactionForm(); }
@@ -3190,6 +3247,7 @@ applyTheme();
 loadState();
 materializeRecurring();
 prunePhotos();
+document.getElementById('page-title').textContent = pageTitle(state.page);
 renderNav();
 renderPageShell();
 renderBackupBanner();
@@ -3201,7 +3259,9 @@ if(syncConfigured()) syncNow();
 /* ---------- service worker ---------- */
 if('serviceWorker' in navigator){
   window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js').catch(function(err){
+    /* updateViaCache 'none' : le navigateur revérifie sw.js à chaque ouverture,
+       sans passer par son propre cache HTTP. */
+    navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).catch(function(err){
       if(window.console && console.warn) console.warn('[Grand Livre] service worker indisponible', err);
     });
   });
