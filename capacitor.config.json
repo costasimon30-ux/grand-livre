@@ -1,0 +1,10 @@
+{
+  "appId": "com.costasimon.grandlivre",
+  "appName": "Grand Livre",
+  "webDir": "www",
+  "backgroundColor": "#1B1C1E",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#1B1C1E"
+  }
+}
