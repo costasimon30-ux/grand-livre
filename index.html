@@ -964,8 +964,9 @@ function renderNav(){
   var pops = state.page==='pops';
   document.querySelector('.page-description').innerHTML = pops ? 'Toute la collection.<br>Une seule vue.' : 'Tous tes comptes.<br>Une seule vue.';
 }
+/* Pas de bouton d'ajout sur la Vue d'ensemble ni dans les Réglages : on ajoute
+   une transaction depuis l'onglet Transactions, pas d'ailleurs. */
 var QUICK_ADD = {
-  dashboard:['quick-add','Nouvelle transaction'],
   transactions:['new-tx','Nouvelle transaction'],
   recurring:['new-recurring','Nouvelle récurrence'],
   accounts:['new-account','Nouveau compte'],
