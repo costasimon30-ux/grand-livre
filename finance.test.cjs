@@ -134,3 +134,17 @@ test('eBay relay parses listings, filters other numbers and enforces its allowed
   assert.equal((await relay.default.fetch(new Request('https://relay/?q=groot',{headers:{Origin:'https://app.example'}}),{ALLOWED_ORIGIN:'https://app.example'})).status,500);
  }finally{global.fetch=realFetch;}
 });
+test('in the iOS app, exports go through Filesystem and the share sheet; a cancelled share is silent',async()=>{
+ const c=setup(),calls=[],toasts=[];c.showToast=(m,e)=>toasts.push([m,!!e]);
+ c.window.Capacitor={isNativePlatform:()=>true,Plugins:{
+  Filesystem:{writeFile:async o=>{calls.push(['write',o.path,o.directory,o.encoding,o.data.length>0]);return {uri:'file:///cache/'+o.path};}},
+  Share:{share:async o=>{calls.push(['share',o.files[0]]);}}}};
+ assert.equal(c.isNativeApp(),true);
+ assert.equal(await c.downloadFile('a.json','{}','application/json'),true);
+ assert.deepEqual(plain(calls),[['write','a.json','CACHE','utf8',true],['share','file:///cache/a.json']]);
+ c.window.Capacitor.Plugins.Share.share=async()=>{throw new Error('Share canceled');};
+ assert.equal(await c.downloadFile('b.json','{}','application/json'),false);assert.deepEqual(toasts,[]);
+ c.window.Capacitor.Plugins.Share.share=async()=>{throw new Error('disk full');};
+ assert.equal(await c.downloadFile('c.json','{}','application/json'),false);assert.equal(toasts.length,1);assert.ok(toasts[0][1]);
+ c.window.Capacitor=undefined;assert.equal(c.isNativeApp(),false);assert.equal(c.nativePlugin('Share'),null);
+});

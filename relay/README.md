@@ -26,7 +26,7 @@ Pourquoi un relais ? La clé eBay est secrète et ne doit jamais se trouver dans
    |---|---|---|
    | `EBAY_CLIENT_ID` | Secret | l'App ID eBay |
    | `EBAY_CLIENT_SECRET` | Secret | le Cert ID eBay |
-   | `ALLOWED_ORIGIN` | Text | l'adresse où tu ouvres Grand Livre, sans chemin ni `/` final (par exemple `https://ton-compte.github.io`) |
+   | `ALLOWED_ORIGIN` | Text | l'adresse où tu ouvres Grand Livre, sans chemin ni `/` final (par exemple `https://ton-compte.github.io`). Avec l'app iOS, ajoute `,capacitor://localhost` |
    | `EBAY_MARKETPLACE` | Text (facultatif) | `EBAY_US` par défaut, qui a le plus d'annonces Funko ; `EBAY_FR` pour eBay France |
 
 5. Redéploie, puis note l'adresse du Worker : `https://grand-livre-pop.<ton-compte>.workers.dev`.
