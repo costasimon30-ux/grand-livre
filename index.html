@@ -154,6 +154,18 @@
   .pop-actions{display:flex;justify-content:flex-end;gap:6px;padding:10px 12px 12px;}
   .pop-online{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px;}
   .pop-online p{flex-basis:100%;margin:0;}
+  .pop-section-title{margin:0 0 12px;font:10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);}
+  #pop-list+#pop-suggest:not(:empty){margin-top:24px;}
+  .pop-suggest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:12px;}
+  .pop-suggest{display:flex;flex-direction:column;min-width:0;padding:0;text-align:left;color:var(--ink);cursor:pointer;}
+  .pop-suggest:hover{border-color:var(--ink-soft);}
+  .pop-suggest .pop-body{display:flex;flex-direction:column;gap:2px;padding:10px 12px 12px;}
+  .pop-suggest .pop-photo{width:100%;}
+  .pop-suggest .pop-name{font-size:13px;}
+  .pop-source{font:9px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);}
+  .pop-suggest-add{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font:10px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--forest);}
+  .pop-suggest-add svg{width:12px;height:12px;}
+  .pop-suggest-note{margin:10px 0 0;}
   .pop-form-photo{display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;}
   .pop-form-photo .pop-photo{width:120px;border:1px solid var(--line);}
   .pop-form-photo-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
@@ -232,7 +244,7 @@
     .charge-row{grid-template-columns:minmax(0,1fr) auto;}.charge-name{grid-column:1/-1;}.charge-actions{justify-content:flex-end;}.charge-row-add,.charge-row-edit{grid-template-columns:1fr 1fr;}.charge-row-add>input[type=text],.charge-row-edit>input[type=text],.charge-row-add>.charge-actions,.charge-row-edit>.charge-actions{grid-column:1/-1;}.charge-actions .btn{flex:1;}
     .rec-summary{padding:24px;gap:20px 32px;}.rec-group{padding-inline:18px;}.banner,.backup-banner{margin-inline:20px;}.backup-actions{flex-wrap:wrap;width:100%;}.backup-actions>.btn{flex:1;}.form-card,.card-pad{padding:20px;}.bar-row{grid-template-columns:minmax(65px,1fr) minmax(40px,1fr) auto;gap:8px;}
   }
-  @media(max-width:480px){.pop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-body{padding:10px 12px 2px;}.pop-name{font-size:13px;}.pop-actions{padding:8px;gap:4px;}.pop-actions .icon-btn{width:40px;height:40px;}}
+  @media(max-width:480px){.pop-suggest-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-body{padding:10px 12px 2px;}.pop-name{font-size:13px;}.pop-actions{padding:8px;gap:4px;}.pop-actions .icon-btn{width:40px;height:40px;}}
   @media(max-width:480px){.sync-chip{max-width:105px;font-size:9px;}.theme-toggle{min-width:66px;}.brand-subtitle{font-size:9px;letter-spacing:.04em;}.stat-row{grid-template-columns:1fr;}.stat-tile{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;gap:12px;}.stat-value{margin:0;}.hero-accounts{flex-direction:column;}.chart-card,.panel{padding:20px;}.rec-group-head{align-items:flex-start;}.rec-group-name{overflow-wrap:anywhere;}.acc-balance{font-size:26px;}}
   @media(max-width:480px){
     .content[data-page="dashboard"] .table-wrap table,.content[data-page="dashboard"] .table-wrap tbody{display:block;}
@@ -377,6 +389,7 @@ var state = {
   editChargeId:null,
   showPopForm:false, editPopId:null, popPrefill:null,
   popFilters:{search:'', status:'all'},
+  popRelay:'',         /* adresse du relais de recherche eBay, propre à l'appareil */
   theme:'dark',
   recGroupBy:'category'   /* 'category' | 'account' — préférence d'affichage, propre à l'appareil */
 };
@@ -1845,10 +1858,13 @@ function renderPopsPage(){
         '<option value="wanted"'+(state.popFilters.status==='wanted'?' selected':'')+'>Recherchées</option>'+
       '</select>'+
     '</div>'+
-    '<div id="pop-list"></div>';
+    '<div id="pop-list"></div>'+
+    '<div id="pop-suggest"></div>';
   renderPopSummary();
   renderPopForm();
   renderPopList();
+  renderPopSuggest();
+  if(state.popFilters.search.trim()) searchPopSuggestions(state.popFilters.search);
 }
 function renderPopSummary(){
   var wrap = document.getElementById('pop-summary');
@@ -1891,14 +1907,9 @@ function renderPopList(){
   }
   var html = list.length ? '<div class="pop-grid">'+list.map(popCardHTML).join('')+'</div>' : '';
   if(q){
-    /* Rien trouvé chez vous ? On propose d'aller voir en ligne, ou de l'ajouter. */
-    html += '<div class="card card-pad pop-online">'+
-      '<p class="'+(list.length?'faint small':'')+'">'+(list.length
-        ? list.length+' Pop correspond'+(list.length>1?'ent':'')+' à « '+escapeHtml(q)+' » dans la collection.'
-        : 'Aucune Pop ne correspond à « '+escapeHtml(q)+' » dans la collection.')+'</p>'+
-      '<a class="btn btn-ghost btn-sm" href="'+escapeHtml(popSearchUrl(q))+'" target="_blank" rel="noopener noreferrer">'+icon('search')+' Chercher « '+escapeHtml(q)+' » en ligne</a>'+
-      '<button class="btn btn-ghost btn-sm" data-act="pop-add-from-search">'+icon('plus')+' Ajouter « '+escapeHtml(q)+' »</button>'+
-    '</div>';
+    html = '<p class="pop-section-title">'+(list.length
+        ? 'Dans la collection · '+list.length+' Pop'
+        : 'Pas dans la collection')+'</p>'+html;
   } else if(!list.length){
     html = '<div class="card card-pad empty">Aucune Pop avec ce statut.</div>';
   }
@@ -1911,7 +1922,7 @@ function renderPopForm(){
   if(!state.showPopForm){ slot.innerHTML = ''; return; }
   var editing = state.editPopId ? state.pops.find(function(p){return p.id===state.editPopId;}) : null;
   var pre = state.popPrefill || {};
-  var v = editing || {number:pre.number||'', name:pre.name||'', series:'', note:'', status:'owned', photoUrl:''};
+  var v = editing || {number:pre.number||'', name:pre.name||'', series:pre.series||'', note:'', status:'owned', photoUrl:pre.photoUrl||''};
   var seriesList = uniq(state.pops.map(function(p){return p.series;}).filter(Boolean)).sort();
   slot.innerHTML =
     '<form class="card form-card" id="pop-form" data-edit-id="'+(editing?editing.id:'')+'">'+
@@ -1994,10 +2005,200 @@ function submitPopForm(form){
   else data.photoId = popDraft.remove ? '' : (oldPhoto || '');
   if(data.photoId) data.photoUrl = '';
   if(oldPhoto && oldPhoto!==data.photoId) forgetPhoto(oldPhoto);
+  var newUrl = data.photoUrl && (!existing || existing.photoUrl!==data.photoUrl) ? data.photoUrl : '';
   if(existing) updatePop(editId, data); else createPop(data);
+  if(newUrl) adoptRemotePhoto(existing ? editId : data.id, newUrl);
   closePopForm();
   renderPopList();
   renderPopSummary();
+  renderPopSuggest();
+}
+
+/* ---------- suggestions : catalogue intégré et relais eBay ----------
+   Pendant la frappe, on propose des Pop à ajouter. Deux sources : un catalogue
+   ouvert embarqué (noms et photos, sans numéros, arrêté en 2021) et, si un
+   relais est configuré, les annonces eBay, qui donnent les numéros et les
+   sorties récentes. Choisir une suggestion préremplit le formulaire. */
+var suggest = {
+  query:'', seq:0, timer:null, controller:null,
+  catalog:'idle', ebay:'idle', error:'',
+  catalogResults:[], ebayResults:[], results:[],
+  catalogIndex:null, catalogPromise:null,
+  cache:Object.create(null)       /* réponses eBay déjà reçues, par recherche */
+};
+function catalogIndex(data){
+  return (data.items||[]).map(function(r){
+    return {name:r[0], series:r[1]||'', image:r[2] ? data.imageBase+r[2] : '', source:'Catalogue', number:'',
+            key:normalizeSearch(r[0]+' '+(r[1]||''))};
+  });
+}
+function searchCatalog(index, query, limit){
+  var q = normalizeSearch(query).replace(/^#/,'');
+  /* le catalogue n'a pas de numéros : une recherche par numéro ne peut rien y trouver */
+  if(q.length<2 || /^\d+$/.test(q)) return [];
+  var words = q.split(/\s+/);
+  var hits = index.filter(function(item){
+    return words.every(function(w){ return item.key.indexOf(w)!==-1; });
+  });
+  hits.sort(function(a,b){
+    var sa = normalizeSearch(a.name).indexOf(q)===0 ? 0 : 1, sb = normalizeSearch(b.name).indexOf(q)===0 ? 0 : 1;
+    return sa-sb || a.name.length-b.name.length || a.name.localeCompare(b.name,'fr');
+  });
+  return hits.slice(0, limit||12);
+}
+function loadCatalog(){
+  if(!suggest.catalogPromise){
+    suggest.catalogPromise = fetch('pop-catalog.json').then(function(res){
+      if(!res.ok) throw new Error('catalogue introuvable ('+res.status+')');
+      return res.json();
+    }).then(function(data){
+      suggest.catalogIndex = catalogIndex(data);
+      return suggest.catalogIndex;
+    });
+    suggest.catalogPromise.catch(function(){ suggest.catalogPromise = null; });
+  }
+  return suggest.catalogPromise;
+}
+function relayRequest(query, signal){
+  return fetch(state.popRelay+'/?q='+encodeURIComponent(query), {signal:signal, cache:'no-store', credentials:'omit'}).then(function(res){
+    return res.json().catch(function(){ return {}; }).then(function(body){
+      if(!res.ok) throw new Error(body.error || 'le relais a répondu '+res.status);
+      return (Array.isArray(body.results) ? body.results : []).filter(function(r){
+        return r && typeof r.name==='string' && r.name.trim();
+      }).map(function(r){
+        return {number:String(r.number||'').slice(0,20), name:r.name.trim().slice(0,80), series:'',
+                image:validPhotoUrl(r.image) ? r.image : '', source:'eBay'};
+      });
+    });
+  });
+}
+function fetchRelay(query, seq){
+  var controller = typeof AbortController!=='undefined' ? new AbortController() : null;
+  suggest.controller = controller;
+  relayRequest(query, controller ? controller.signal : undefined).then(function(results){
+    suggest.cache[query.toLowerCase()] = results;
+    if(seq!==suggest.seq) return;
+    suggest.ebay = 'done';
+    suggest.ebayResults = results;
+    renderPopSuggest();
+  }).catch(function(err){
+    if(seq!==suggest.seq || (err && err.name==='AbortError')) return;
+    suggest.ebay = 'error';
+    suggest.error = (err && err.message) || 'erreur inconnue';
+    renderPopSuggest();
+  });
+}
+function searchPopSuggestions(raw){
+  var q = String(raw||'').trim().replace(/^#/,'');
+  var seq = ++suggest.seq;
+  clearTimeout(suggest.timer);
+  if(suggest.controller){ suggest.controller.abort(); suggest.controller = null; }
+  suggest.query = q;
+  suggest.catalogResults = [];
+  suggest.ebayResults = [];
+  if(q.length<2){ suggest.catalog = suggest.ebay = 'idle'; renderPopSuggest(); return; }
+
+  if(suggest.catalogIndex){
+    suggest.catalog = 'done';
+    suggest.catalogResults = searchCatalog(suggest.catalogIndex, q, 12);
+  } else {
+    suggest.catalog = 'loading';
+    loadCatalog().then(function(index){
+      if(seq!==suggest.seq) return;
+      suggest.catalog = 'done';
+      suggest.catalogResults = searchCatalog(index, q, 12);
+      renderPopSuggest();
+    }, function(){
+      if(seq!==suggest.seq) return;
+      suggest.catalog = 'error';
+      renderPopSuggest();
+    });
+  }
+
+  var cached = suggest.cache[q.toLowerCase()];
+  if(!state.popRelay) suggest.ebay = 'off';
+  else if(cached){ suggest.ebay = 'done'; suggest.ebayResults = cached; }
+  else if(!navigator.onLine) suggest.ebay = 'offline';
+  else {
+    /* on attend une courte pause dans la frappe avant d'appeler eBay */
+    suggest.ebay = 'loading';
+    suggest.timer = setTimeout(function(){ fetchRelay(q, seq); }, 350);
+  }
+  renderPopSuggest();
+}
+function suggestionOwned(r){
+  if(r.number) return samePopNumber(r.number, null).length>0;
+  var n = normalizeSearch(r.name);
+  return state.pops.some(function(p){ return normalizeSearch(p.name)===n; });
+}
+function renderPopSuggest(){
+  var wrap = document.getElementById('pop-suggest');
+  if(!wrap) return;
+  var q = suggest.query;
+  if(!q){ wrap.innerHTML = ''; return; }
+  suggest.results = suggest.ebayResults.concat(suggest.catalogResults);
+  var notes = [];
+  if(suggest.ebay==='loading') notes.push('Recherche sur eBay…');
+  if(suggest.ebay==='error') notes.push('eBay indisponible : '+suggest.error);
+  if(suggest.ebay==='offline') notes.push('Hors ligne : pas de recherche eBay.');
+  if(suggest.ebay==='off' && /^\d+$/.test(q)) notes.push('La recherche par numéro passe par eBay : ajoute l’adresse de ton relais dans Réglages.');
+  if(suggest.catalog==='loading') notes.push('Chargement du catalogue…');
+  if(suggest.catalog==='error') notes.push('Catalogue indisponible : il faut une connexion la première fois.');
+  var busy = suggest.ebay==='loading' || suggest.catalog==='loading';
+  var html = '';
+  if(q.length>=2){
+    html += '<p class="pop-section-title">Suggestions'+(suggest.results.length ? ' · '+suggest.results.length : '')+'</p>';
+    if(suggest.results.length){
+      html += '<div class="pop-suggest-grid">'+suggest.results.map(function(r, i){
+        var owned = suggestionOwned(r);
+        return '<button type="button" class="card pop-suggest" data-act="pop-suggest-pick" data-idx="'+i+'" aria-label="Ajouter '+escapeHtml(r.name)+'">'+
+          '<span class="pop-photo'+(r.image?' has-img':'')+'">'+
+            (r.image ? '<img src="'+escapeHtml(r.image)+'" alt="" loading="lazy" referrerpolicy="no-referrer">' : '')+
+            '<span class="pop-photo-ph">'+icon('image')+'</span></span>'+
+          '<span class="pop-body">'+
+            (r.number ? '<span class="pop-number mono">#'+escapeHtml(r.number)+'</span>' : '')+
+            '<span class="pop-name">'+escapeHtml(r.name)+'</span>'+
+            (r.series ? '<span class="faint small">'+escapeHtml(r.series)+'</span>' : '')+
+            '<span class="pop-source">'+escapeHtml(r.source)+(owned ? ' · déjà dans la liste' : '')+'</span>'+
+            '<span class="pop-suggest-add">'+icon('plus')+' Ajouter</span>'+
+          '</span>'+
+        '</button>';
+      }).join('')+'</div>';
+    } else if(!busy){
+      html += '<p class="faint small pop-suggest-note">Aucune suggestion pour « '+escapeHtml(q)+' ».</p>';
+    }
+    if(notes.length) html += '<p class="faint small pop-suggest-note">'+notes.map(escapeHtml).join(' · ')+'</p>';
+  }
+  html += '<div class="card card-pad pop-online">'+
+    '<a class="btn btn-ghost btn-sm" href="'+escapeHtml(popSearchUrl(q))+'" target="_blank" rel="noopener noreferrer">'+icon('search')+' Chercher « '+escapeHtml(q)+' » sur Google Images</a>'+
+    '<button class="btn btn-ghost btn-sm" data-act="pop-add-from-search">'+icon('plus')+' Ajouter « '+escapeHtml(q)+' » à la main</button>'+
+  '</div>';
+  wrap.innerHTML = html;
+}
+/* Une image choisie en ligne est rapatriée comme vraie photo quand son site
+   le permet : elle suit alors la synchronisation et ne dépend plus du site. */
+function adoptRemotePhoto(popId, url){
+  fetch(url, {credentials:'omit', referrerPolicy:'no-referrer'}).then(function(res){
+    if(!res.ok) throw new Error('image indisponible');
+    return res.blob();
+  }).then(compressPhoto).then(function(blob){
+    var p = state.pops.find(function(x){return x.id===popId;});
+    if(!p || p.photoId || p.photoUrl!==url) return;   /* modifiée entre-temps */
+    p.photoId = addPhoto(blob);
+    delete p.photoUrl;
+    stamp(p);
+    persist();
+    if(state.page==='pops') renderPopList();
+  }).catch(function(){ /* site qui refuse : on garde simplement le lien */ });
+}
+function testPopRelay(){
+  if(!state.popRelay) return;
+  relayRequest('spider-man').then(function(results){
+    showToast('Relais eBay opérationnel : '+results.length+' suggestion(s) pour « spider-man ».');
+  }).catch(function(err){
+    showToast('Le relais ne répond pas : '+((err&&err.message)||'erreur inconnue'), true);
+  });
+  if(state.page==='settings') renderSettingsPage();
 }
 
 /* ---------- page Réglages ---------- */
@@ -2042,6 +2243,16 @@ function renderSettingsPage(){
         '<button class="btn btn-ghost" data-act="export-csv">Exporter en CSV</button>'+
         '<button class="btn btn-ghost" data-act="export-pops-csv">Exporter la collection Pop (CSV)</button>'+
       '</div>'+
+    '</div>'+
+    '<div class="card card-pad settings-section">'+
+      '<h3>Recherche de Pop en ligne</h3>'+
+      '<p class="lead">La recherche de l’onglet Collection Pop puise dans un catalogue intégré (10 500 Pop, noms et photos, arrêté en 2021). Pour trouver aussi les Pop par numéro et les sorties récentes, colle ici l’adresse de ton relais eBay. Elle reste sur cet appareil : à coller sur chacun.</p>'+
+      '<form id="pop-relay-form" class="form-actions" style="align-items:flex-end;">'+
+        '<div class="field" style="flex:1 1 320px;margin:0;"><label for="pr-relay">Adresse du relais eBay</label>'+
+          '<input id="pr-relay" name="relay" type="url" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+escapeHtml(state.popRelay)+'" placeholder="https://grand-livre-pop.ton-compte.workers.dev"></div>'+
+        '<button type="submit" class="btn btn-primary">Enregistrer</button>'+
+        (state.popRelay ? '<button type="button" class="btn btn-ghost" data-act="pop-relay-test">Tester</button>' : '')+
+      '</form>'+
     '</div>'+
     '<div class="card card-pad settings-section">'+
       '<h3>Sur cet appareil</h3>'+
@@ -2262,6 +2473,7 @@ function loadUiPrefs(){
       var u = JSON.parse(raw);
       if(u.theme === 'light' || u.theme === 'dark') state.theme = u.theme;
       if(u.recGroupBy === 'account' || u.recGroupBy === 'category') state.recGroupBy = u.recGroupBy;
+      if(typeof u.popRelay === 'string' && (!u.popRelay || validPhotoUrl(u.popRelay))) state.popRelay = u.popRelay;
     }
   }catch(err){}
 }
@@ -2273,7 +2485,7 @@ function applyTheme(){
   button.setAttribute('aria-label', state.theme==='dark' ? 'Activer le thème clair' : 'Activer le thème sombre');
 }
 function saveUiPrefs(){
-  try{ localStorage.setItem(UI_KEY, JSON.stringify({recGroupBy:state.recGroupBy, theme:state.theme})); }catch(err){}
+  try{ localStorage.setItem(UI_KEY, JSON.stringify({recGroupBy:state.recGroupBy, theme:state.theme, popRelay:state.popRelay})); }catch(err){}
 }
 
 /* ---------- appels à l'API GitHub ----------
@@ -2591,7 +2803,7 @@ function applyPendingImport(){
 var motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 var currentTransition = null;
 var transitionQueue = Promise.resolve();
-var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby','toggle-pop-form','edit-pop','pop-add-from-search']);
+var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby','toggle-pop-form','edit-pop','pop-add-from-search','pop-suggest-pick']);
 
 var startupAnimation = null;
 
@@ -2678,6 +2890,11 @@ function handleAction(btn, act){
   else if(act==='toggle-pop-form'){ if(state.showPopForm){ closePopForm(); } else { openPopForm(null, null); } }
   else if(act==='edit-pop'){ openPopForm(btn.getAttribute('data-id'), null); }
   else if(act==='pop-add-from-search'){ openPopForm(null, prefillFromSearch(state.popFilters.search)); }
+  else if(act==='pop-suggest-pick'){
+    var pick = suggest.results[Number(btn.getAttribute('data-idx'))];
+    if(pick) openPopForm(null, {number:pick.number, name:pick.name, series:pick.series, photoUrl:pick.image});
+  }
+  else if(act==='pop-relay-test'){ testPopRelay(); }
   else if(act==='pop-photo-remove'){ clearPopDraft(); popDraft.remove = true; renderPopPreview(); }
   else if(act==='del-pop'){
     var pid = btn.getAttribute('data-id'); var pkey = 'pop:'+pid;
@@ -2774,6 +2991,16 @@ document.addEventListener('submit', function(e){
     state.editChargeId = null;
     renderChargesCard();
     renderChargesSummary();
+    return;
+  }
+  if(form.id==='pop-relay-form'){
+    e.preventDefault();
+    var relay = String(new FormData(form).get('relay')||'').trim().replace(/\/+$/,'');
+    if(relay && !validPhotoUrl(relay)){ showToast('L’adresse du relais doit commencer par https://', true); return; }
+    state.popRelay = relay;
+    saveUiPrefs();
+    suggest.cache = Object.create(null);
+    if(relay) testPopRelay(); else showToast('Recherche eBay désactivée sur cet appareil.');
     return;
   }
   if(form.id==='pop-form'){
@@ -2879,7 +3106,7 @@ document.addEventListener('change', function(e){
 });
 document.addEventListener('input', function(e){
   if(e.target.id==='f-search'){ state.txFilters.search = e.target.value; renderTransactionsTable(); }
-  if(e.target.id==='pop-search'){ state.popFilters.search = e.target.value; renderPopList(); }
+  if(e.target.id==='pop-search'){ state.popFilters.search = e.target.value; renderPopList(); searchPopSuggestions(e.target.value); }
   if(e.target.id==='pf-number' || e.target.id==='pf-name' || e.target.id==='pf-photo-url'){ updatePopFormHints(); if(e.target.id==='pf-photo-url') renderPopPreview(); }
 });
 
