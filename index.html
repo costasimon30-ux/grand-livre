@@ -39,18 +39,29 @@
   button{cursor:pointer;} button:disabled{cursor:not-allowed;opacity:.5;}
   :focus-visible{outline:2px solid var(--ink);outline-offset:4px;}
   .app{min-height:100vh;}
-  .sidebar{display:grid;grid-template-columns:1fr auto;align-items:center;gap:22px;padding:20px 48px 0;border-bottom:1px solid var(--line);background:var(--bg);}
+  .sidebar{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr auto;align-items:center;gap:22px;padding:16px 48px;border-bottom:1px solid var(--line);background:var(--bg);}
   .brand{display:flex;align-items:center;gap:24px;}
   .brand-mark{font-family:'Arial Black',sans-serif;font-weight:900;font-size:19px;line-height:.87;letter-spacing:-1px;}
   .brand-name{display:block;font-family:var(--mono);font-size:13px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;}
   .brand-subtitle{display:block;font-size:10px;letter-spacing:.12em;color:var(--ink-soft);margin-top:3px;}
-  .nav-list{display:flex;grid-column:1/-1;grid-row:2;gap:30px;overflow-x:auto;scrollbar-width:thin;}
-  .nav-btn{display:flex;align-items:center;gap:10px;flex:none;padding:13px 0 17px;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--ink-soft);font:11px var(--mono);text-transform:uppercase;letter-spacing:.09em;white-space:nowrap;}
-  .nav-btn svg{display:none;}
-  .nav-btn:hover{color:var(--ink);}
-  .nav-btn.active{color:var(--ink);border-bottom-color:var(--ink);font-weight:700;}
+  /* Menu burger : un panneau qui descend sous l'en-tête, aligné à droite. */
+  .head-btn{display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;padding:0;border:1px solid var(--line);border-radius:2px;background:transparent;color:var(--ink);}
+  .head-btn svg{width:19px;height:19px;}
+  .head-btn:hover,.head-btn[aria-expanded="true"],.head-btn[aria-current="page"]{background:var(--bg-sunken);}
+  .head-btn[aria-current="page"]{border-color:var(--ink);}
+  .nav-menu{position:absolute;top:calc(100% + 8px);right:48px;width:300px;max-width:calc(100vw - 40px);max-height:calc(100vh - 110px);overflow-y:auto;padding:8px;background:var(--bg-raised);border:1px solid var(--line);box-shadow:0 18px 50px #0006;animation:menu-in 160ms ease-out both;}
+  @keyframes menu-in{from{opacity:0;transform:translateY(-6px);}}
+  .nav-list{display:flex;flex-direction:column;gap:2px;}
+  .nav-btn{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:10px 14px;background:transparent;border:0;border-left:2px solid transparent;color:var(--ink-soft);font:11px var(--mono);text-align:left;text-transform:uppercase;letter-spacing:.09em;}
+  .nav-btn svg{width:17px;height:17px;flex:none;}
+  .nav-btn:hover{color:var(--ink);background:var(--bg-sunken);}
+  .nav-btn.active{color:var(--ink);background:var(--bg-sunken);border-left-color:var(--ink);font-weight:700;}
+  .nav-number{color:var(--ink-faint);}
+  .nav-menu-foot{margin-top:8px;padding-top:8px;border-top:1px solid var(--line);}
+  .nav-menu-foot .theme-toggle{width:100%;min-height:44px;border:0;text-align:left;padding:10px 14px;}
   .nav-number{font-size:10px;}
-  .sidebar-foot{display:flex;align-items:center;gap:20px;grid-column:2;grid-row:1;}
+  .sidebar-foot{display:flex;align-items:center;gap:10px;}
+  .sidebar-foot .sync-chip{margin-right:10px;}
   .theme-toggle{min-width:90px;min-height:38px;border:1px solid var(--line);color:var(--ink);background:transparent;font:11px var(--mono);}
   .theme-toggle:hover{background:var(--bg-sunken);}
   .sync-chip{display:flex;align-items:center;gap:8px;border:0;padding:8px 0;background:transparent;color:var(--ink-faint);font:10px var(--mono);cursor:pointer;}
@@ -61,7 +72,6 @@
   .sync-chip.is-syncing .sync-dot,.sync-chip.is-offline .sync-dot{background:var(--caramel);}
   .sync-chip.is-syncing .sync-dot{animation:pulse 1.2s ease-in-out infinite;}
   @keyframes pulse{50%{opacity:.35;}}
-  .topnav{display:none;}
   .main{min-width:0;background:linear-gradient(115deg,var(--bg-raised),var(--bg) 65%);}
   .topbar{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 32px;padding:26px 0 20px;border-bottom:1px solid var(--line);}
   .page-heading{display:flex;flex-direction:column;gap:11px;min-width:0;}
@@ -234,9 +244,9 @@
   .modal-card{max-width:460px;width:100%;padding:28px;max-height:90vh;overflow:auto;}
   .modal-card h3{font-size:18px;}
   @media(min-width:1600px){.topbar{max-width:1536px;width:calc(100% - 64px);margin-inline:auto;}}
-  @media(max-width:1050px){.sidebar{padding-inline:32px;}.nav-list{gap:22px;}.page-description{display:none;}.hero-value{font-size:40px;}.sync-chip{max-width:190px;}}
+  @media(max-width:1050px){.sidebar{padding-inline:32px;}.nav-menu{right:32px;}.page-description{display:none;}.hero-value{font-size:40px;}.sync-chip{max-width:190px;}}
   @media(max-width:820px){
-    .sidebar{padding:18px 20px 0;gap:18px;}.brand{gap:14px;}.brand-name{font-size:12px;}.sidebar-foot{gap:12px;}.sync-chip{max-width:150px;line-height:1.4;}.nav-list{gap:24px;}.nav-btn{min-height:44px;}
+    .sidebar{padding:12px 20px;gap:12px;}.brand{gap:14px;}.brand-name{font-size:12px;}.sidebar-foot{gap:8px;}.sidebar-foot .sync-chip{margin-right:4px;}.sync-chip{max-width:150px;line-height:1.4;}.head-btn{width:44px;height:44px;}.nav-menu{right:20px;left:20px;width:auto;max-width:none;}.nav-btn{min-height:52px;font-size:12px;}
     .topbar{margin:0 20px;padding:24px 0 20px;flex-wrap:wrap;gap:18px;}h1{font-size:26px;}.topbar-actions{width:100%;}.topbar-actions>.btn{width:100%;}
     .content{padding:20px 20px 40px;}.content[data-page="dashboard"]{display:flex;flex-direction:column;}.hero{padding:26px;min-height:220px;}.hero-value{font-size:clamp(28px,7vw,44px);}.stat-row{gap:10px;}.stat-tile{padding:18px 12px;}.stat-value{font-size:20px;}.hero-label{font-size:9px;letter-spacing:.09em;}
     .page-head{flex-wrap:wrap;gap:16px;}.page-head>.btn{width:100%;}.field-grid{grid-template-columns:1fr;gap:0;}.field input,.field select,.charge-row input,.charge-row select,.filters input,.filters select{font-size:16px;}
@@ -245,7 +255,7 @@
     .rec-summary{padding:24px;gap:20px 32px;}.rec-group{padding-inline:18px;}.banner,.backup-banner{margin-inline:20px;}.backup-actions{flex-wrap:wrap;width:100%;}.backup-actions>.btn{flex:1;}.form-card,.card-pad{padding:20px;}.bar-row{grid-template-columns:minmax(65px,1fr) minmax(40px,1fr) auto;gap:8px;}
   }
   @media(max-width:480px){.pop-suggest-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-body{padding:10px 12px 2px;}.pop-name{font-size:13px;}.pop-actions{padding:8px;gap:4px;}.pop-actions .icon-btn{width:40px;height:40px;}}
-  @media(max-width:480px){.sync-chip{max-width:105px;font-size:9px;}.theme-toggle{min-width:66px;}.brand-subtitle{font-size:9px;letter-spacing:.04em;}.stat-row{grid-template-columns:1fr;}.stat-tile{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;gap:12px;}.stat-value{margin:0;}.hero-accounts{flex-direction:column;}.chart-card,.panel{padding:20px;}.rec-group-head{align-items:flex-start;}.rec-group-name{overflow-wrap:anywhere;}.acc-balance{font-size:26px;}}
+  @media(max-width:480px){.sync-chip{max-width:92px;font-size:9px;}.brand{gap:10px;}.brand-name{white-space:nowrap;font-size:11px;}.brand-subtitle{display:none;}.stat-row{grid-template-columns:1fr;}.stat-tile{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;gap:12px;}.stat-value{margin:0;}.hero-accounts{flex-direction:column;}.chart-card,.panel{padding:20px;}.rec-group-head{align-items:flex-start;}.rec-group-name{overflow-wrap:anywhere;}.acc-balance{font-size:26px;}}
   @media(max-width:480px){
     .content[data-page="dashboard"] .table-wrap table,.content[data-page="dashboard"] .table-wrap tbody{display:block;}
     .content[data-page="dashboard"] .table-wrap tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px 12px;padding:16px 0;border-bottom:1px solid var(--line);}
@@ -263,7 +273,7 @@
   html[data-transition-scope="content"]::view-transition-old(root),html[data-transition-scope="content"]::view-transition-new(root){animation:none;}
   ::view-transition-group(*){animation-duration:220ms;}
   ::view-transition{pointer-events:none;}
-  .btn,.icon-btn,.theme-toggle,.nav-btn,.type-opt span{transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease,opacity 140ms ease;}
+  .btn,.icon-btn,.head-btn,.theme-toggle,.nav-btn,.type-opt span{transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease,opacity 140ms ease;}
   @media(prefers-reduced-motion:reduce){
     *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important;}
     ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important;}
@@ -275,14 +285,19 @@
 <div class="app" id="app">
   <header class="sidebar" id="sidebar">
     <div class="brand"><span class="brand-mark" aria-hidden="true">GR.<br>LV.</span><div><span class="brand-name">Grand Livre</span><span class="brand-subtitle">Finances personnelles</span></div></div>
-    <nav class="nav-list" id="nav-list-desktop" aria-label="Navigation principale"></nav>
     <div class="sidebar-foot">
       <button class="sync-chip" id="sync-chip" data-act="nav" data-page="settings" aria-label="État de synchronisation et réglages"></button>
-      <button class="theme-toggle" id="theme-toggle" data-act="toggle-theme" aria-label="Activer le thème clair">☀ Clair</button>
+      <button class="head-btn" id="settings-btn" data-act="nav" data-page="settings" aria-label="Réglages" title="Réglages"></button>
+      <button class="head-btn" id="menu-btn" data-act="toggle-menu" aria-expanded="false" aria-controls="nav-menu" aria-label="Ouvrir le menu" title="Menu"></button>
     </div>
+    <nav class="nav-menu" id="nav-menu" aria-label="Navigation principale" hidden>
+      <div class="nav-list" id="nav-list"></div>
+      <div class="nav-menu-foot">
+        <button class="theme-toggle" id="theme-toggle" data-act="toggle-theme" aria-label="Activer le thème clair">☀ Thème clair</button>
+      </div>
+    </nav>
   </header>
   <main class="main">
-    <div class="topnav" id="nav-list-mobile"></div>
     <header class="topbar">
       <div class="page-heading">
         <div class="eyebrow" id="page-kicker">01 / Espace personnel</div>
@@ -356,6 +371,8 @@ function icon(name){
     gear:'<circle cx="12" cy="12" r="3.1"/><path d="M19.4 14.5a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-1.7-.3 1.5 1.5 0 0 0-.9 1.4v.2a1.8 1.8 0 1 1-3.6 0v-.1a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9h-.2a1.8 1.8 0 1 1 0-3.6h.1a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.2a1.8 1.8 0 1 1 3.6 0v.1a1.5 1.5 0 0 0 .9 1.4 1.5 1.5 0 0 0 1.7-.3l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.2a1.8 1.8 0 1 1 0 3.6h-.1a1.5 1.5 0 0 0-1.4.9Z"/>',
     cloud:'<path d="M17.5 18.5H7a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.6 3.7 3.7 0 0 1-.4 7.4Z"/>',
     check:'<path d="M4.5 12.5l5 5 10-11"/>',
+    menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+    close:'<path d="M6 6l12 12M18 6 6 18"/>',
     star:'<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8L12 3.5Z"/>',
     search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
     image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 16l-5.5-5.5L5 20"/>',
@@ -912,14 +929,17 @@ function trendChartSVG(){
 
 /* ---------- render: shell / nav ---------- */
 function navHTML(){
+  /* Réglages a sa roue crantée dans l'en-tête : le menu liste les autres onglets. */
   return NAV.map(function(n,i){
+    if(n.id==='settings') return '';
     return '<button class="nav-btn'+(state.page===n.id?' active':'')+'" data-act="nav" data-page="'+n.id+'"'+(state.page===n.id?' aria-current="page"':'')+'><span class="nav-number" aria-hidden="true">'+String(i+1).padStart(2,'0')+'</span>'+icon(n.icon)+'<span>'+n.label+'</span></button>';
   }).join('');
 }
 function renderNav(){
   document.getElementById('page-kicker').textContent = String(NAV.findIndex(function(n){return n.id===state.page;})+1).padStart(2,'0')+' / Espace personnel';
-  document.getElementById('nav-list-desktop').innerHTML = navHTML();
-  document.getElementById('nav-list-mobile').innerHTML = navHTML();
+  document.getElementById('nav-list').innerHTML = navHTML();
+  var gear = document.getElementById('settings-btn');
+  if(state.page==='settings') gear.setAttribute('aria-current','page'); else gear.removeAttribute('aria-current');
   /* le bouton d'ajout rapide suit l'onglet : on n'ajoute pas une transaction depuis la collection */
   var pops = state.page==='pops';
   document.querySelector('[data-act="quick-add"]').innerHTML = icon('plus')+(pops?' Nouvelle Pop':' Nouvelle transaction');
@@ -928,7 +948,24 @@ function renderNav(){
 function pageTitle(p){
   return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', pops:'Collection Pop', settings:'Réglages'}[p];
 }
+/* ---------- menu burger ---------- */
+function menuOpen(){ return !document.getElementById('nav-menu').hidden; }
+function setMenuOpen(open, restoreFocus){
+  var menu = document.getElementById('nav-menu'), btn = document.getElementById('menu-btn');
+  if(menu.hidden === !open) return;
+  menu.hidden = !open;
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.setAttribute('aria-label', open ? 'Fermer le menu' : 'Ouvrir le menu');
+  btn.innerHTML = icon(open ? 'close' : 'menu');
+  if(open){
+    var current = menu.querySelector('.nav-btn.active') || menu.querySelector('.nav-btn');
+    if(current) current.focus();
+  } else if(restoreFocus){
+    btn.focus();
+  }
+}
 function navigateTo(page){
+  setMenuOpen(false);
   materializeRecurring();
   state.page = page;
   document.getElementById('page-title').textContent = pageTitle(page);
@@ -2481,7 +2518,7 @@ function applyTheme(){
   document.documentElement.dataset.theme = state.theme;
   document.querySelector('meta[name="theme-color"]').content = state.theme==='light' ? '#F4F4F0' : '#1B1C1E';
   var button = document.getElementById('theme-toggle');
-  button.textContent = state.theme==='dark' ? '☀ Clair' : '☾ Sombre';
+  button.textContent = state.theme==='dark' ? '☀ Thème clair' : '☾ Thème sombre';
   button.setAttribute('aria-label', state.theme==='dark' ? 'Activer le thème clair' : 'Activer le thème sombre');
 }
 function saveUiPrefs(){
@@ -2849,6 +2886,17 @@ motionPreference.addEventListener('change', function(){
   }
 });
 
+/* Le menu se referme dès qu'on touche ailleurs, ou avec Échap. Toucher la
+   page sous le menu ne fait que le fermer : on ne déclenche pas par mégarde
+   le bouton qui se trouvait dessous. */
+document.addEventListener('click', function(e){
+  if(!menuOpen() || e.target.closest('#nav-menu') || e.target.closest('#menu-btn')) return;
+  setMenuOpen(false);
+  if(!e.target.closest('#sidebar')){ e.preventDefault(); e.stopPropagation(); }
+}, true);
+document.addEventListener('keydown', function(e){
+  if(e.key==='Escape' && menuOpen()) setMenuOpen(false, true);
+});
 document.addEventListener('click', function(e){
   var btn = e.target.closest('[data-act]');
   if(!btn) return;
@@ -2858,7 +2906,8 @@ document.addEventListener('click', function(e){
 });
 
 function handleAction(btn, act){
-  if(act==='toggle-theme'){ state.theme = state.theme==='dark' ? 'light' : 'dark'; applyTheme(); saveUiPrefs(); }
+  if(act==='toggle-menu'){ setMenuOpen(!menuOpen()); }
+  else if(act==='toggle-theme'){ state.theme = state.theme==='dark' ? 'light' : 'dark'; applyTheme(); saveUiPrefs(); }
   else if(act==='nav'){ navigateTo(btn.getAttribute('data-page')); }
   else if(act==='quick-add' && state.page==='pops'){ openPopForm(null, null); }
   else if(act==='quick-add'){ navigateTo('transactions'); state.showTxForm = true; state.editTxId = null; renderPageShell(); document.getElementById('tf-amount') && document.getElementById('tf-amount').focus(); }
@@ -3133,6 +3182,8 @@ document.addEventListener('visibilitychange', function(){
 
 /* ---------- boot ---------- */
 loadPhotoQueue();
+document.getElementById('settings-btn').innerHTML = icon('gear');
+document.getElementById('menu-btn').innerHTML = icon('menu');
 loadSyncSettings();
 loadUiPrefs();
 applyTheme();
