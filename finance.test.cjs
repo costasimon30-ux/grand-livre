@@ -72,3 +72,37 @@ test('chart cutoffs use local calendar months, including Paris UTC offset',()=>{
 test('transfer and charge data survive two-device merge and repeated synchronization',()=>{
  const a=setup(),b=setup();a.state.transactions=[tx({type:'transfer',toAccountId:'b',amount:25})];a.state.charges=[{id:'c',name:'Internet',type:'debit',amount:30,updatedAt:1}];b.mergeRemoteIntoState(plain(a.dataPayload()));a.mergeRemoteIntoState(plain(b.dataPayload()));assert.equal(a.state.transactions.length,1);assert.equal(b.accountBalance(b.state.accounts[1]),525);assert.equal(b.state.charges[0].amount,30);assert.equal(a.totalBalance(),1500);
 });
+function pop(overrides={}){return {id:'p',number:'123',name:'Darth Vader',series:'Star Wars',status:'owned',updatedAt:1,...overrides};}
+test('pop collection is validated, searchable, sorted by number and kept apart from balances',()=>{
+ const c=setup();c.state.pops=[pop({id:'b',number:'1000',name:'Groot',series:'Marvel'}),pop({id:'a',number:'12',name:'Élise',series:undefined,status:'wanted'}),pop({id:'x',number:'SE',name:'Special'})];
+ assert.deepEqual(c.filteredPops().map(p=>p.id),['a','b','x']);
+ c.state.popFilters.search='elise';assert.deepEqual(c.filteredPops().map(p=>p.id),['a']);
+ c.state.popFilters.search='#1000 marvel';assert.deepEqual(c.filteredPops().map(p=>p.id),['b']);
+ c.state.popFilters.search='';c.state.popFilters.status='wanted';assert.deepEqual(c.filteredPops().map(p=>p.id),['a']);
+ assert.equal(c.samePopNumber('#12').length,1);assert.equal(c.samePopNumber('12','a').length,0);
+ assert.equal(c.totalBalance(),1500);
+ const data=plain(c.dataPayload());assert.equal(data.formatVersion,4);assert.equal(c.validatePayload(data,true).pops.length,3);
+ assert.throws(()=>c.validatePayload({...data,pops:[pop({name:' '})]},true));
+ assert.throws(()=>c.validatePayload({...data,pops:[pop({status:'maybe'})]},true));
+ assert.throws(()=>c.validatePayload({...data,pops:[pop({photoUrl:'javascript:alert(1)'})]},true));
+ assert.throws(()=>c.validatePayload({...data,pops:[pop({photoId:'../x'})]},true));
+ assert.throws(()=>c.validatePayload({...data,formatVersion:5},true));
+ const legacy={...data,formatVersion:3};delete legacy.pops;assert.deepEqual(plain(c.validatePayload(legacy,true).pops),[]);
+});
+test('pop creation, edit and deletion merge across two devices without resurrection',()=>{
+ const a=setup(),b=setup();a.genId=()=> 'p1';a.createPop({number:'123',name:'Vader',series:'',note:'',status:'owned',photoUrl:'',photoId:''});
+ assert.deepEqual(Object.keys(a.state.pops[0]).sort(),['createdAt','id','name','number','status','updatedAt']);
+ b.mergeRemoteIntoState(plain(a.dataPayload()));assert.equal(b.state.pops.length,1);
+ b.now=()=>Date.now()+1000;b.updatePop('p1',{status:'wanted'});a.mergeRemoteIntoState(plain(b.dataPayload()));assert.equal(a.state.pops[0].status,'wanted');
+ a.now=()=>Date.now()+2000;a.deletePop('p1');b.mergeRemoteIntoState(plain(a.dataPayload()));assert.equal(b.state.pops.length,0);a.mergeRemoteIntoState(plain(b.dataPayload()));assert.equal(a.state.pops.length,0);
+});
+test('import replaces the pop collection and records removed pops',()=>{
+ const c=setup();c.state.pops=[pop({id:'kept'})];const backup=plain(c.dataPayload());c.state.pops=[pop({id:'local'})];
+ c.pendingImport=c.validatePayload(backup,true);c.applyPendingImport();assert.deepEqual(plain(c.state.pops.map(p=>p.id)),['kept']);assert.ok(c.tombs('pops').local);
+});
+test('photos removed before upload are never deleted remotely; uploaded ones are',()=>{
+ const c=setup();c.URL={createObjectURL:()=> 'blob:x',revokeObjectURL(){}};
+ c.photoQueue.upload.push('fresh');c.forgetPhoto('fresh');assert.deepEqual(plain(c.photoQueue),{upload:[],remove:[]});
+ c.forgetPhoto('sent');assert.deepEqual(plain(c.photoQueue.remove),['sent']);
+ c.sync.path='data/grand-livre.json';assert.equal(c.photoPath('abc'),'data/grand-livre-photos/abc.jpg');
+});
