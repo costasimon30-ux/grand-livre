@@ -139,6 +139,26 @@
   .charge-row-add,.charge-row-edit{grid-template-columns:minmax(0,1fr) 120px 130px auto;}
   .charge-row-add{padding-top:20px;}
   .charge-row-edit{background:var(--bg-sunken);padding:16px;margin:8px 0;}
+  .pop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:16px;}
+  .pop-card{display:flex;flex-direction:column;min-width:0;overflow:hidden;}
+  .pop-card.is-wanted{border-style:dashed;}
+  .pop-photo{position:relative;aspect-ratio:1;display:flex;align-items:center;justify-content:center;background:var(--bg-sunken);border-bottom:1px solid var(--line);overflow:hidden;}
+  .pop-photo img{width:100%;height:100%;object-fit:contain;}
+  .pop-photo-ph{color:var(--ink-faint);} .pop-photo-ph svg{width:34px;height:34px;}
+  .pop-photo.has-img .pop-photo-ph{display:none;}
+  .pop-body{flex:1;min-width:0;padding:14px 16px 4px;}
+  .pop-number{font-size:11px;letter-spacing:.08em;color:var(--ink-faint);}
+  .pop-name{margin:4px 0;font-size:15px;font-weight:800;overflow-wrap:anywhere;}
+  .pop-wanted{margin-top:8px;color:var(--caramel);border-color:var(--caramel);}
+  .pop-note{margin-top:6px;overflow-wrap:anywhere;}
+  .pop-actions{display:flex;justify-content:flex-end;gap:6px;padding:10px 12px 12px;}
+  .pop-online{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px;}
+  .pop-online p{flex-basis:100%;margin:0;}
+  .pop-form-photo{display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px;}
+  .pop-form-photo .pop-photo{width:120px;border:1px solid var(--line);}
+  .pop-form-photo-actions{display:flex;flex-direction:column;align-items:flex-start;gap:8px;}
+  .pop-dupe{margin:-8px 0 14px;color:var(--caramel);}
+  a.btn,a.icon-btn{text-decoration:none;}
   .empty{padding:40px 24px;text-align:center;color:var(--ink-faint);font-size:13px;}
   .empty svg{width:30px;height:30px;margin-bottom:12px;}
   table{width:100%;border-collapse:collapse;font-size:13px;}
@@ -212,6 +232,7 @@
     .charge-row{grid-template-columns:minmax(0,1fr) auto;}.charge-name{grid-column:1/-1;}.charge-actions{justify-content:flex-end;}.charge-row-add,.charge-row-edit{grid-template-columns:1fr 1fr;}.charge-row-add>input[type=text],.charge-row-edit>input[type=text],.charge-row-add>.charge-actions,.charge-row-edit>.charge-actions{grid-column:1/-1;}.charge-actions .btn{flex:1;}
     .rec-summary{padding:24px;gap:20px 32px;}.rec-group{padding-inline:18px;}.banner,.backup-banner{margin-inline:20px;}.backup-actions{flex-wrap:wrap;width:100%;}.backup-actions>.btn{flex:1;}.form-card,.card-pad{padding:20px;}.bar-row{grid-template-columns:minmax(65px,1fr) minmax(40px,1fr) auto;gap:8px;}
   }
+  @media(max-width:480px){.pop-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}.pop-body{padding:10px 12px 2px;}.pop-name{font-size:13px;}.pop-actions{padding:8px;gap:4px;}.pop-actions .icon-btn{width:40px;height:40px;}}
   @media(max-width:480px){.sync-chip{max-width:105px;font-size:9px;}.theme-toggle{min-width:66px;}.brand-subtitle{font-size:9px;letter-spacing:.04em;}.stat-row{grid-template-columns:1fr;}.stat-tile{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;gap:12px;}.stat-value{margin:0;}.hero-accounts{flex-direction:column;}.chart-card,.panel{padding:20px;}.rec-group-head{align-items:flex-start;}.rec-group-name{overflow-wrap:anywhere;}.acc-balance{font-size:26px;}}
   @media(max-width:480px){
     .content[data-page="dashboard"] .table-wrap table,.content[data-page="dashboard"] .table-wrap tbody{display:block;}
@@ -277,7 +298,7 @@
   <div class="card modal-card">
     <h3>Importer ces données ?</h3>
     <p class="muted" id="import-summary" style="margin:8px 0;"></p>
-    <p class="faint small">Cela remplace les données de cet appareil, y compris Compte Charge. Si la synchronisation est active, ces changements seront aussi envoyés à GitHub et aux autres appareils. Exporte une sauvegarde avant de continuer.</p>
+    <p class="faint small">Cela remplace les données de cet appareil, y compris Compte Charge et la collection Pop. Si la synchronisation est active, ces changements seront aussi envoyés à GitHub et aux autres appareils. Exporte une sauvegarde avant de continuer.</p>
     <div class="form-actions">
       <button class="btn btn-primary" data-act="confirm-import">Remplacer mes données</button>
       <button class="btn btn-ghost" data-act="cancel-import">Annuler</button>
@@ -302,6 +323,7 @@ var NAV = [
   {id:'recurring', label:'Récurrent', icon:'repeat'},
   {id:'accounts', label:'Comptes', icon:'wallet'},
   {id:'charges', label:'Compte Charge', icon:'receipt'},
+  {id:'pops', label:'Collection Pop', icon:'star'},
   {id:'settings', label:'Réglages', icon:'gear'}
 ];
 
@@ -322,6 +344,9 @@ function icon(name){
     gear:'<circle cx="12" cy="12" r="3.1"/><path d="M19.4 14.5a1.5 1.5 0 0 0 .3 1.7l.1.1a1.8 1.8 0 1 1-2.6 2.6l-.1-.1a1.5 1.5 0 0 0-1.7-.3 1.5 1.5 0 0 0-.9 1.4v.2a1.8 1.8 0 1 1-3.6 0v-.1a1.5 1.5 0 0 0-1-1.4 1.5 1.5 0 0 0-1.7.3l-.1.1a1.8 1.8 0 1 1-2.6-2.6l.1-.1a1.5 1.5 0 0 0 .3-1.7 1.5 1.5 0 0 0-1.4-.9h-.2a1.8 1.8 0 1 1 0-3.6h.1a1.5 1.5 0 0 0 1.4-1 1.5 1.5 0 0 0-.3-1.7l-.1-.1a1.8 1.8 0 1 1 2.6-2.6l.1.1a1.5 1.5 0 0 0 1.7.3h.1a1.5 1.5 0 0 0 .9-1.4v-.2a1.8 1.8 0 1 1 3.6 0v.1a1.5 1.5 0 0 0 .9 1.4 1.5 1.5 0 0 0 1.7-.3l.1-.1a1.8 1.8 0 1 1 2.6 2.6l-.1.1a1.5 1.5 0 0 0-.3 1.7v.1a1.5 1.5 0 0 0 1.4.9h.2a1.8 1.8 0 1 1 0 3.6h-.1a1.5 1.5 0 0 0-1.4.9Z"/>',
     cloud:'<path d="M17.5 18.5H7a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.5 1.6 3.7 3.7 0 0 1-.4 7.4Z"/>',
     check:'<path d="M4.5 12.5l5 5 10-11"/>',
+    star:'<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8L12 3.5Z"/>',
+    search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>',
+    image:'<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9.5" r="1.8"/><path d="M21 16l-5.5-5.5L5 20"/>',
     alert:'<path d="M12 8.5v5"/><circle cx="12" cy="16.8" r=".9" fill="currentColor" stroke="none"/><path d="M10.3 3.9 2.6 17.2A2 2 0 0 0 4.3 20.2h15.4a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>'
   };
   return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+(p[name]||'')+'</svg>';
@@ -337,10 +362,11 @@ var state = {
   transactions:[],
   recurring:[],
   charges:[],          /* lignes du compte charges, indépendantes des transactions */
+  pops:[],             /* collection de figurines Funko Pop, sans lien avec les comptes */
   budget:{targets:{}, updatedAt:0},
   /* Ce qui a été supprimé, et quand. Sans cette trace, une suppression faite
      sur un appareil serait ressuscitée par l'autre à la fusion suivante. */
-  tombstones:{accounts:{}, transactions:{}, recurring:{}, charges:{}},
+  tombstones:{accounts:{}, transactions:{}, recurring:{}, charges:{}, pops:{}},
   meta:{lastExportAt:null, snoozeUntil:null},
   loaded:false,
   storageAvailable:true,
@@ -349,6 +375,8 @@ var state = {
   showRecurringForm:false, editRecurringId:null,
   txFilters:{account:'all', category:'all', type:'all', search:''},
   editChargeId:null,
+  showPopForm:false, editPopId:null, popPrefill:null,
+  popFilters:{search:'', status:'all'},
   theme:'dark',
   recGroupBy:'category'   /* 'category' | 'account' — préférence d'affichage, propre à l'appareil */
 };
@@ -369,7 +397,7 @@ var syncTimer = null;
 function now(){ return Date.now(); }
 function stamp(rec){ rec.updatedAt = now(); return rec; }
 function tombs(kind){
-  if(!state.tombstones) state.tombstones = {accounts:{}, transactions:{}, recurring:{}, charges:{}};
+  if(!state.tombstones) state.tombstones = {accounts:{}, transactions:{}, recurring:{}, charges:{}, pops:{}};
   if(!state.tombstones[kind]) state.tombstones[kind] = {};
   return state.tombstones[kind];
 }
@@ -474,10 +502,10 @@ function validatePayload(input, checkReferences){
   function text(value){return typeof value==='string';}
   function timestamp(value){return value===undefined || (typeof value==='number' && Number.isFinite(value) && value>=0);}
   if(!object(input) || (input.app && input.app!=='grand-livre')) fail('ce fichier ne correspond pas à Grand Livre.');
-  if(input.formatVersion!==undefined && (!Number.isInteger(input.formatVersion) || input.formatVersion<1 || input.formatVersion>3)) fail('version de sauvegarde non prise en charge. Mets l’application à jour.');
+  if(input.formatVersion!==undefined && (!Number.isInteger(input.formatVersion) || input.formatVersion<1 || input.formatVersion>4)) fail('version de sauvegarde non prise en charge. Mets l’application à jour.');
   var data=JSON.parse(JSON.stringify(input));
-  ['accounts','transactions','recurring','charges'].forEach(function(kind){
-    if(data[kind]===undefined && (kind==='recurring'||kind==='charges')) data[kind]=[];
+  ['accounts','transactions','recurring','charges','pops'].forEach(function(kind){
+    if(data[kind]===undefined && (kind==='recurring'||kind==='charges'||kind==='pops')) data[kind]=[];
     if(!Array.isArray(data[kind])) fail('collection '+kind+' absente ou incorrecte.');
     var seen=new Set();
     data[kind].forEach(function(r){if(!object(r)||!id(r.id)||seen.has(r.id)||!timestamp(r.updatedAt)) fail('identifiant ou horodatage incorrect dans '+kind+'.');seen.add(r.id);});
@@ -500,13 +528,17 @@ function validatePayload(input, checkReferences){
     if(checkReferences&&!accounts.has(r.accountId)) fail('une récurrence référence un compte absent.');
   });
   data.charges.forEach(function(c){if(!text(c.name)||!c.name.trim()||!['debit','income'].includes(c.type)||!money(c.amount,true)) fail('ligne Compte Charge incorrecte.');});
+  data.pops.forEach(function(p){
+    if(!text(p.number)||!p.number.trim()||!text(p.name)||!p.name.trim()||!['owned','wanted'].includes(p.status)||(p.series!==undefined&&!text(p.series))||(p.note!==undefined&&!text(p.note))) fail('Pop de la collection incorrecte.');
+    if((p.photoId!==undefined&&!id(p.photoId))||(p.photoUrl!==undefined&&!validPhotoUrl(p.photoUrl))) fail('photo de Pop incorrecte.');
+  });
   data.budget=data.budget||{targets:{}};if(!object(data.budget)) fail('budget incorrect.');
   data.budget.targets=data.budget.targets||{};data.budget.ts=data.budget.ts||{};
   if(!object(data.budget.targets)||!object(data.budget.ts)) fail('objectifs incorrects.');
   Object.keys(data.budget.targets).forEach(function(k){if(!money(data.budget.targets[k],false)||data.budget.targets[k]<0) fail('objectif incorrect.');});
   Object.keys(data.budget.ts).forEach(function(k){if(!timestamp(data.budget.ts[k])) fail('horodatage de budget incorrect.');});
   data.tombstones=data.tombstones||{};if(!object(data.tombstones)) fail('suppressions incorrectes.');
-  ['accounts','transactions','recurring','charges'].forEach(function(kind){
+  ['accounts','transactions','recurring','charges','pops'].forEach(function(kind){
     var tomb=data.tombstones[kind]||{};if(!object(tomb)) fail('suppressions incorrectes.');
     Object.keys(tomb).forEach(function(k){if(!id(k)||!timestamp(tomb[k])) fail('suppression incorrecte.');});data.tombstones[kind]=tomb;
   });
@@ -548,11 +580,13 @@ function normalizeState(){
   adoptRecords(state.recurring);
   if(!Array.isArray(state.charges)) state.charges = [];
   adoptRecords(state.charges);
+  if(!Array.isArray(state.pops)) state.pops = [];
+  adoptRecords(state.pops);
   if(!state.budget) state.budget = {targets:{}};
   if(!state.budget.targets) state.budget.targets = {};
   if(!state.budget.ts) state.budget.ts = {};
   if(!state.tombstones) state.tombstones = {};
-  ['accounts','transactions','recurring','charges'].forEach(function(k){
+  ['accounts','transactions','recurring','charges','pops'].forEach(function(k){
     if(!state.tombstones[k]) state.tombstones[k] = {};
   });
 }
@@ -566,6 +600,7 @@ function loadState(){
       state.transactions = parsed.transactions || [];
       state.recurring = parsed.recurring || [];
       state.charges = parsed.charges || [];
+      state.pops = parsed.pops || [];
       state.budget = parsed.budget || {targets:{}};
       state.tombstones = parsed.tombstones || null;
       state.meta = parsed.meta || {lastExportAt:null, snoozeUntil:null};
@@ -581,9 +616,9 @@ function loadState(){
 }
 function dataPayload(){
   return {
-    app:'grand-livre', formatVersion:3,
+    app:'grand-livre', formatVersion:4,
     accounts:state.accounts, transactions:state.transactions, recurring:state.recurring,
-    charges:state.charges, budget:state.budget, tombstones:state.tombstones
+    charges:state.charges, pops:state.pops, budget:state.budget, tombstones:state.tombstones
   };
 }
 function persist(opts){
@@ -872,9 +907,13 @@ function renderNav(){
   document.getElementById('page-kicker').textContent = String(NAV.findIndex(function(n){return n.id===state.page;})+1).padStart(2,'0')+' / Espace personnel';
   document.getElementById('nav-list-desktop').innerHTML = navHTML();
   document.getElementById('nav-list-mobile').innerHTML = navHTML();
+  /* le bouton d'ajout rapide suit l'onglet : on n'ajoute pas une transaction depuis la collection */
+  var pops = state.page==='pops';
+  document.querySelector('[data-act="quick-add"]').innerHTML = icon('plus')+(pops?' Nouvelle Pop':' Nouvelle transaction');
+  document.querySelector('.page-description').innerHTML = pops ? 'Toute la collection.<br>Une seule vue.' : 'Tous tes comptes.<br>Une seule vue.';
 }
 function pageTitle(p){
-  return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', settings:'Réglages'}[p];
+  return {dashboard:'Vue d’ensemble', transactions:'Transactions', recurring:'Récurrent', accounts:'Comptes', charges:'Compte Charge', pops:'Collection Pop', settings:'Réglages'}[p];
 }
 function navigateTo(page){
   materializeRecurring();
@@ -896,6 +935,7 @@ function renderPageShell(){
   else if(state.page==='transactions') renderTransactionsPage();
   else if(state.page==='recurring') renderRecurringPage();
   else if(state.page==='charges') renderChargesPage();
+  else if(state.page==='pops') renderPopsPage();
   else if(state.page==='settings') renderSettingsPage();
 }
 
@@ -1449,6 +1489,517 @@ function renderChargesCard(){
   wrap.innerHTML = '<div class="card charges-card">'+(rows || empty)+addRow+'</div>';
 }
 
+/* ================= COLLECTION POP =================
+   Un inventaire de figurines, sans lien avec les comptes : il partage seulement
+   le stockage, la synchronisation et les sauvegardes du reste de l'application. */
+var POP_STATUS_LABELS = {owned:'Dans la collection', wanted:'Recherchée'};
+
+function validPhotoUrl(value){ return typeof value==='string' && value.length<=2000 && /^https:\/\/[^\s"'<>]+$/.test(value); }
+function normalizeSearch(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function popMatches(p, query){
+  var q = normalizeSearch(query);
+  if(!q) return true;
+  var hay = normalizeSearch('#'+p.number+' '+p.name+' '+(p.series||'')+' '+(p.note||''));
+  return q.split(/\s+/).every(function(word){ return hay.indexOf(word)!==-1; });
+}
+/* Rangement par numéro, comme sur les boîtes ; les numéros non numériques en dernier. */
+function comparePops(a, b){
+  var na = parseInt(a.number,10), nb = parseInt(b.number,10);
+  if(isNaN(na)!==isNaN(nb)) return isNaN(na) ? 1 : -1;
+  if(!isNaN(na) && na!==nb) return na-nb;
+  return a.name.localeCompare(b.name,'fr');
+}
+function filteredPops(){
+  var f = state.popFilters;
+  return state.pops.filter(function(p){
+    return (f.status==='all' || p.status===f.status) && popMatches(p, f.search);
+  }).sort(comparePops);
+}
+function samePopNumber(number, exceptId){
+  var n = normalizeSearch(number).replace(/^#/,'');
+  if(!n) return [];
+  return state.pops.filter(function(p){ return p.id!==exceptId && normalizeSearch(p.number)===n; });
+}
+function popSearchUrl(query){
+  return 'https://www.google.com/search?tbm=isch&q='+encodeURIComponent('Funko Pop '+String(query||'').trim());
+}
+function popQuery(p){ return (p.series ? p.series+' ' : '')+p.name+' '+p.number; }
+function validPop(data){
+  var good = !!data.number && data.number.length<=20 && !!data.name && data.name.length<=80 &&
+    (data.status==='owned' || data.status==='wanted') && (!data.photoUrl || validPhotoUrl(data.photoUrl));
+  if(!good) showToast('Il faut un numéro et un nom. Un lien d’image doit commencer par https://', true);
+  return good;
+}
+function cleanPop(p){
+  ['series','note','photoId','photoUrl'].forEach(function(k){ if(!p[k]) delete p[k]; });
+  return p;
+}
+function createPop(data){
+  data.id = genId();
+  data.createdAt = new Date().toISOString();
+  stamp(cleanPop(data));
+  state.pops.push(data);
+  if(persist()) showToast(data.status==='wanted' ? 'Pop ajoutée à la liste des recherchées.' : 'Pop ajoutée à la collection.');
+}
+function updatePop(id, data){
+  var p = state.pops.find(function(x){return x.id===id;});
+  if(!p) return;
+  Object.assign(p, data);
+  stamp(cleanPop(p));
+  if(persist()) showToast('Pop mise à jour.');
+}
+function deletePop(id){
+  var p = state.pops.find(function(x){return x.id===id;});
+  markDeleted('pops', id);
+  state.pops = state.pops.filter(function(x){return x.id!==id;});
+  if(p && p.photoId) forgetPhoto(p.photoId);
+  if(persist()) showToast('Pop retirée de la collection.');
+}
+function exportPopsCSV(){
+  var rows = [['Numéro','Nom','Licence','Statut','Note','Lien photo']];
+  state.pops.slice().sort(comparePops).forEach(function(p){
+    rows.push([p.number, p.name, p.series||'', POP_STATUS_LABELS[p.status], p.note||'', p.photoUrl||'']);
+  });
+  var csv = rows.map(function(r){
+    return r.map(function(v){
+      var s = String(v==null?'':v);
+      return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+    }).join(';');
+  }).join('\r\n');
+  if(downloadFile('grand-livre-collection-pop.csv', '﻿'+csv, 'text/csv;charset=utf-8')){
+    showToast('Export de la collection téléchargé.');
+  }
+}
+
+/* ---------- photos de la collection ----------
+   Les photos ne vont pas dans le fichier de données : quelques dizaines
+   suffiraient à dépasser ce que le navigateur et l'API GitHub acceptent pour un
+   seul fichier. Chacune vit dans IndexedDB sur l'appareil et dans son propre
+   fichier du dépôt de données. Une photo ne change jamais : la remplacer crée
+   un nouvel identifiant, donc deux appareils ne peuvent pas se contredire. */
+var PHOTO_DB = 'grand-livre-photos', PHOTO_STORE = 'photos', PHOTO_QUEUE_KEY = 'grand-livre-photo-queue-v1';
+var PHOTO_MAX_SIDE = 800;
+var photoUrls = Object.create(null);     /* id -> URL d'affichage (object URL) */
+var photoBlobs = Object.create(null);    /* id -> photo pas encore envoyée, gardée en mémoire au cas où IndexedDB manque */
+var photoLoading = Object.create(null);  /* id -> chargement en cours */
+var photoMissing = Object.create(null);  /* id -> introuvable pendant cette session */
+var photoQueue = {upload:[], remove:[]}; /* envois et effacements distants en attente */
+var photoDbPromise = null, photoFlushing = null;
+
+function photoDb(){
+  if(!photoDbPromise){
+    photoDbPromise = new Promise(function(resolve, reject){
+      if(typeof indexedDB==='undefined') return reject(new Error('IndexedDB indisponible'));
+      var req = indexedDB.open(PHOTO_DB, 1);
+      req.onupgradeneeded = function(){ req.result.createObjectStore(PHOTO_STORE); };
+      req.onsuccess = function(){ resolve(req.result); };
+      req.onerror = function(){ reject(req.error); };
+    });
+  }
+  return photoDbPromise;
+}
+function photoStore(mode, fn){
+  return photoDb().then(function(db){
+    return new Promise(function(resolve, reject){
+      var tx = db.transaction(PHOTO_STORE, mode);
+      var req = fn(tx.objectStore(PHOTO_STORE));
+      tx.oncomplete = function(){ resolve(req.result); };
+      tx.onerror = tx.onabort = function(){ reject(tx.error); };
+    });
+  });
+}
+function idbGetPhoto(id){ return photoStore('readonly', function(st){ return st.get(id); }); }
+function idbPutPhoto(id, blob){ return photoStore('readwrite', function(st){ return st.put(blob, id); }); }
+function idbDeletePhoto(id){ return photoStore('readwrite', function(st){ return st.delete(id); }); }
+function idbPhotoKeys(){ return photoStore('readonly', function(st){ return st.getAllKeys(); }); }
+
+function loadPhotoQueue(){
+  try{
+    var q = JSON.parse(localStorage.getItem(PHOTO_QUEUE_KEY)||'null');
+    if(q && Array.isArray(q.upload) && Array.isArray(q.remove)) photoQueue = q;
+  }catch(err){}
+}
+function savePhotoQueue(){
+  try{ localStorage.setItem(PHOTO_QUEUE_KEY, JSON.stringify(photoQueue)); }catch(err){}
+}
+function dequeuePhoto(kind, id){
+  var i = photoQueue[kind].indexOf(id);
+  if(i!==-1){ photoQueue[kind].splice(i,1); savePhotoQueue(); }
+  return i!==-1;
+}
+function addPhoto(blob){
+  var id = genId();
+  photoBlobs[id] = blob;
+  photoUrls[id] = URL.createObjectURL(blob);
+  idbPutPhoto(id, blob).catch(function(){});
+  photoQueue.upload.push(id);
+  savePhotoQueue();
+  return id;
+}
+function forgetPhoto(id){
+  if(photoUrls[id]){ URL.revokeObjectURL(photoUrls[id]); delete photoUrls[id]; }
+  delete photoBlobs[id];
+  idbDeletePhoto(id).catch(function(){});
+  /* jamais partie sur GitHub : rien à y effacer */
+  if(!dequeuePhoto('upload', id) && photoQueue.remove.indexOf(id)===-1){
+    photoQueue.remove.push(id);
+    savePhotoQueue();
+  }
+}
+/* Les photos que plus aucune Pop n'utilise (supprimées sur un autre appareil,
+   par exemple) sont effacées de cet appareil. */
+function prunePhotos(){
+  var used = Object.create(null);
+  state.pops.forEach(function(p){ if(p.photoId) used[p.photoId] = 1; });
+  photoQueue.upload.forEach(function(id){ used[id] = 1; });
+  return idbPhotoKeys().then(function(keys){
+    keys.forEach(function(id){
+      if(used[id]) return;
+      idbDeletePhoto(id).catch(function(){});
+      if(photoUrls[id]){ URL.revokeObjectURL(photoUrls[id]); delete photoUrls[id]; }
+    });
+  }).catch(function(){});
+}
+
+/* Réduit la photo avant de la garder : une photo de téléphone pèse plusieurs
+   Mo, une vignette de 800 px suffit largement pour reconnaître une figurine. */
+function compressPhoto(file){
+  return new Promise(function(resolve, reject){
+    if(!file.type || file.type.indexOf('image/')!==0) return reject(new Error('ce fichier n’est pas une image.'));
+    var url = URL.createObjectURL(file), img = new Image();
+    img.onload = function(){
+      var scale = Math.min(1, PHOTO_MAX_SIDE/Math.max(img.naturalWidth, img.naturalHeight));
+      var w = Math.max(1, Math.round(img.naturalWidth*scale)), h = Math.max(1, Math.round(img.naturalHeight*scale));
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(function(blob){ if(blob) resolve(blob); else reject(new Error('compression impossible.')); }, 'image/jpeg', 0.82);
+    };
+    img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('image illisible.')); };
+    img.src = url;
+  });
+}
+function blobToB64(blob){
+  return blob.arrayBuffer().then(function(buf){
+    var bytes = new Uint8Array(buf), bin = '', CHUNK = 0x8000;
+    for(var i=0;i<bytes.length;i+=CHUNK) bin += String.fromCharCode.apply(null, bytes.subarray(i, i+CHUNK));
+    return btoa(bin);
+  });
+}
+function b64ToBlob(b64, type){
+  var bin = atob(String(b64||'').replace(/\s/g,''));
+  var bytes = new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], {type:type});
+}
+
+/* Les photos se rangent à côté du fichier de données, dans le même dépôt. */
+function photoPath(id){
+  var slash = sync.path.lastIndexOf('/');
+  return (slash===-1 ? '' : sync.path.slice(0, slash+1))+'grand-livre-photos/'+id+'.jpg';
+}
+function ghGetPhotoFile(id){
+  var url = contentsUrl(photoPath(id))+'?ref='+encodeURIComponent(sync.branch);
+  return fetch(url, {headers:ghHeaders(), cache:'no-store'}).then(function(res){
+    if(res.status===404) return null;
+    if(!res.ok) return res.text().then(function(t){ throw new Error(ghMessage(res,t)); });
+    return res.json();
+  });
+}
+function ghUploadPhoto(id, blob){
+  return blobToB64(blob).then(function(b64){
+    return fetch(contentsUrl(photoPath(id)), {
+      method:'PUT',
+      headers:ghHeaders({'Content-Type':'application/json'}),
+      body:JSON.stringify({message:'Grand Livre — photo '+id, content:b64, branch:sync.branch})
+    });
+  }).then(function(res){
+    /* 422 : le fichier existe déjà, un envoi précédent a abouti sans qu'on le sache */
+    if(res.ok || res.status===422) return;
+    return res.text().then(function(t){ throw new Error(ghMessage(res,t)); });
+  });
+}
+function ghDeletePhoto(id){
+  return ghGetPhotoFile(id).then(function(file){
+    if(!file) return;
+    return fetch(contentsUrl(photoPath(id)), {
+      method:'DELETE',
+      headers:ghHeaders({'Content-Type':'application/json'}),
+      body:JSON.stringify({message:'Grand Livre — photo retirée', sha:file.sha, branch:sync.branch})
+    }).then(function(res){
+      if(res.ok || res.status===404) return;
+      return res.text().then(function(t){ throw new Error(ghMessage(res,t)); });
+    });
+  });
+}
+function localPhotoBlob(id){
+  if(photoBlobs[id]) return Promise.resolve(photoBlobs[id]);
+  return idbGetPhoto(id).catch(function(){ return null; });
+}
+/* Une photo à la fois, dans l'ordre : on s'arrête à la première erreur et on
+   reprendra à la prochaine synchronisation. */
+function flushPhotoQueue(){
+  if(photoFlushing) return photoFlushing;
+  if(!syncConfigured() || !navigator.onLine) return Promise.resolve();
+  function next(){
+    if(photoQueue.remove.length){
+      var rid = photoQueue.remove[0];
+      return ghDeletePhoto(rid).then(function(){ dequeuePhoto('remove', rid); return next(); });
+    }
+    if(photoQueue.upload.length){
+      var uid = photoQueue.upload[0];
+      return localPhotoBlob(uid).then(function(blob){
+        return blob ? ghUploadPhoto(uid, blob) : null;   /* perdue sur cet appareil : rien à envoyer */
+      }).then(function(){ dequeuePhoto('upload', uid); delete photoBlobs[uid]; return next(); });
+    }
+    return Promise.resolve();
+  }
+  photoFlushing = next().catch(function(err){
+    if(window.console && console.warn) console.warn('[Grand Livre] photos en attente', err);
+  }).then(function(){ photoFlushing = null; });
+  return photoFlushing;
+}
+/* Adresse affichable d'une photo : mémoire, puis IndexedDB, puis GitHub. */
+function photoSrc(id){
+  if(photoUrls[id]) return Promise.resolve(photoUrls[id]);
+  if(photoMissing[id]) return Promise.resolve(null);
+  if(photoLoading[id]) return photoLoading[id];
+  photoLoading[id] = localPhotoBlob(id).then(function(blob){
+    if(blob || !syncConfigured() || !navigator.onLine) return blob;
+    return ghGetPhotoFile(id).then(function(file){
+      if(!file || !file.content){ photoMissing[id] = true; return null; }
+      var remote = b64ToBlob(file.content, 'image/jpeg');
+      idbPutPhoto(id, remote).catch(function(){});
+      return remote;
+    }).catch(function(){ return null; });
+  }).then(function(blob){
+    delete photoLoading[id];
+    if(!blob) return null;
+    if(!photoUrls[id]) photoUrls[id] = URL.createObjectURL(blob);
+    return photoUrls[id];
+  });
+  return photoLoading[id];
+}
+function hydratePhotos(root){
+  if(!root) return;
+  root.querySelectorAll('img[data-photo-id]').forEach(function(img){
+    var id = img.getAttribute('data-photo-id');
+    photoSrc(id).then(function(url){
+      if(!url || img.getAttribute('data-photo-id')!==id) return;
+      img.src = url;
+      img.hidden = false;
+      img.parentNode.classList.add('has-img');
+    });
+  });
+}
+function popPhotoHTML(photoId, photoUrl){
+  var placeholder = '<span class="pop-photo-ph">'+icon('image')+'</span>';
+  if(photoId) return '<div class="pop-photo"><img data-photo-id="'+escapeHtml(photoId)+'" alt="" hidden>'+placeholder+'</div>';
+  if(photoUrl) return '<div class="pop-photo has-img"><img src="'+escapeHtml(photoUrl)+'" alt="" loading="lazy" referrerpolicy="no-referrer">'+placeholder+'</div>';
+  return '<div class="pop-photo">'+placeholder+'</div>';
+}
+
+/* ---------- page Collection Pop ---------- */
+/* Photo choisie dans le formulaire, gardée ici tant qu'il n'est pas validé. */
+var popDraft = {blob:null, url:null, remove:false};
+function clearPopDraft(){
+  if(popDraft.url) URL.revokeObjectURL(popDraft.url);
+  popDraft = {blob:null, url:null, remove:false};
+}
+function prefillFromSearch(query){
+  var q = String(query||'').trim().replace(/^#/,'');
+  return /^\d+$/.test(q) ? {number:q} : {name:q};
+}
+function openPopForm(editId, prefill){
+  if(state.page!=='pops') navigateTo('pops');
+  clearPopDraft();
+  state.editPopId = editId;
+  state.popPrefill = prefill;
+  state.showPopForm = true;
+  renderPopForm();
+  var slot = document.getElementById('pop-form-slot');
+  if(slot && slot.scrollIntoView) slot.scrollIntoView({behavior:'smooth', block:'start'});
+  var first = document.getElementById(prefill && prefill.number ? 'pf-name' : 'pf-number');
+  if(first) first.focus();
+}
+function closePopForm(){
+  clearPopDraft();
+  state.showPopForm = false; state.editPopId = null; state.popPrefill = null;
+  renderPopForm();
+}
+function renderPopsPage(){
+  var c = document.getElementById('content');
+  c.innerHTML =
+    '<div class="page-head"><div><p class="muted">Votre collection de figurines Funko Pop. La recherche répond pendant la frappe : pratique en magasin pour savoir si vous l’avez déjà.</p></div>'+
+      '<button class="btn btn-primary" data-act="toggle-pop-form">'+icon('plus')+' Nouvelle Pop</button></div>'+
+    '<div id="pop-summary"></div>'+
+    '<div id="pop-form-slot"></div>'+
+    '<div class="filters card card-pad">'+
+      '<input type="search" id="pop-search" placeholder="Numéro, nom, licence…" autocomplete="off" value="'+escapeHtml(state.popFilters.search)+'" aria-label="Rechercher une Pop">'+
+      '<select id="pop-status-filter" aria-label="Filtrer par statut">'+
+        '<option value="all">Toutes</option>'+
+        '<option value="owned"'+(state.popFilters.status==='owned'?' selected':'')+'>Dans la collection</option>'+
+        '<option value="wanted"'+(state.popFilters.status==='wanted'?' selected':'')+'>Recherchées</option>'+
+      '</select>'+
+    '</div>'+
+    '<div id="pop-list"></div>';
+  renderPopSummary();
+  renderPopForm();
+  renderPopList();
+}
+function renderPopSummary(){
+  var wrap = document.getElementById('pop-summary');
+  if(!wrap) return;
+  if(state.pops.length===0){ wrap.innerHTML = ''; return; }
+  var owned = state.pops.filter(function(p){return p.status==='owned';}).length;
+  var series = uniq(state.pops.filter(function(p){return p.series;}).map(function(p){return normalizeSearch(p.series);})).length;
+  wrap.innerHTML = '<div class="card rec-summary">'+
+    '<div class="rec-figure"><span class="hero-label">Dans la collection</span><span class="rec-amount mono">'+owned+'</span></div>'+
+    '<div class="rec-figure"><span class="hero-label">Recherchées</span><span class="rec-amount mono">'+(state.pops.length-owned)+'</span></div>'+
+    (series ? '<div class="rec-figure"><span class="hero-label">Licences</span><span class="rec-amount mono">'+series+'</span></div>' : '')+
+  '</div>';
+}
+function popCardHTML(p){
+  var key = 'pop:'+p.id;
+  return '<article class="card pop-card'+(p.status==='wanted'?' is-wanted':'')+'">'+
+    popPhotoHTML(p.photoId, p.photoUrl)+
+    '<div class="pop-body">'+
+      '<div class="pop-number mono">#'+escapeHtml(p.number)+'</div>'+
+      '<div class="pop-name">'+escapeHtml(p.name)+'</div>'+
+      (p.series ? '<div class="faint small">'+escapeHtml(p.series)+'</div>' : '')+
+      (p.status==='wanted' ? '<span class="cat-chip pop-wanted">Recherchée</span>' : '')+
+      (p.note ? '<div class="faint small pop-note">'+escapeHtml(p.note)+'</div>' : '')+
+    '</div>'+
+    '<div class="pop-actions">'+
+      '<a class="icon-btn" href="'+escapeHtml(popSearchUrl(popQuery(p)))+'" target="_blank" rel="noopener noreferrer" title="Chercher en ligne" aria-label="Chercher '+escapeHtml(p.name)+' en ligne">'+icon('search')+'</a>'+
+      '<button class="icon-btn" data-act="edit-pop" data-id="'+p.id+'" title="Modifier" aria-label="Modifier '+escapeHtml(p.name)+'">'+icon('edit')+'</button>'+
+      '<button class="icon-btn'+(armed.has(key)?' danger-armed':'')+'" data-act="del-pop" data-id="'+p.id+'" title="Supprimer" aria-label="Supprimer '+escapeHtml(p.name)+'">'+(armed.has(key)?'Confirmer':icon('trash'))+'</button>'+
+    '</div>'+
+  '</article>';
+}
+function renderPopList(){
+  var wrap = document.getElementById('pop-list');
+  if(!wrap) return;
+  var q = state.popFilters.search.trim();
+  var list = filteredPops();
+  if(state.pops.length===0 && !q){
+    wrap.innerHTML = '<div class="card card-pad empty">'+icon('star')+'<p style="margin:6px 0 0;">Aucune Pop pour le moment — ajoute la première de la collection.</p></div>';
+    return;
+  }
+  var html = list.length ? '<div class="pop-grid">'+list.map(popCardHTML).join('')+'</div>' : '';
+  if(q){
+    /* Rien trouvé chez vous ? On propose d'aller voir en ligne, ou de l'ajouter. */
+    html += '<div class="card card-pad pop-online">'+
+      '<p class="'+(list.length?'faint small':'')+'">'+(list.length
+        ? list.length+' Pop correspond'+(list.length>1?'ent':'')+' à « '+escapeHtml(q)+' » dans la collection.'
+        : 'Aucune Pop ne correspond à « '+escapeHtml(q)+' » dans la collection.')+'</p>'+
+      '<a class="btn btn-ghost btn-sm" href="'+escapeHtml(popSearchUrl(q))+'" target="_blank" rel="noopener noreferrer">'+icon('search')+' Chercher « '+escapeHtml(q)+' » en ligne</a>'+
+      '<button class="btn btn-ghost btn-sm" data-act="pop-add-from-search">'+icon('plus')+' Ajouter « '+escapeHtml(q)+' »</button>'+
+    '</div>';
+  } else if(!list.length){
+    html = '<div class="card card-pad empty">Aucune Pop avec ce statut.</div>';
+  }
+  wrap.innerHTML = html;
+  hydratePhotos(wrap);
+}
+function renderPopForm(){
+  var slot = document.getElementById('pop-form-slot');
+  if(!slot) return;
+  if(!state.showPopForm){ slot.innerHTML = ''; return; }
+  var editing = state.editPopId ? state.pops.find(function(p){return p.id===state.editPopId;}) : null;
+  var pre = state.popPrefill || {};
+  var v = editing || {number:pre.number||'', name:pre.name||'', series:'', note:'', status:'owned', photoUrl:''};
+  var seriesList = uniq(state.pops.map(function(p){return p.series;}).filter(Boolean)).sort();
+  slot.innerHTML =
+    '<form class="card form-card" id="pop-form" data-edit-id="'+(editing?editing.id:'')+'">'+
+      '<h3>'+(editing?'Modifier la Pop':'Nouvelle Pop')+'</h3>'+
+      '<div class="field"><label>Statut</label><div class="type-toggle">'+
+        '<label class="type-opt"><input type="radio" name="status" value="owned"'+(v.status!=='wanted'?' checked':'')+'><span class="income">Dans la collection</span></label>'+
+        '<label class="type-opt"><input type="radio" name="status" value="wanted"'+(v.status==='wanted'?' checked':'')+'><span class="transfer">Recherchée</span></label>'+
+      '</div></div>'+
+      '<div class="field-grid">'+
+        '<div class="field"><label for="pf-number">Numéro</label><input id="pf-number" type="text" name="number" required maxlength="20" inputmode="numeric" autocomplete="off" value="'+escapeHtml(v.number)+'" placeholder="Ex. 1234"></div>'+
+        '<div class="field"><label for="pf-name">Nom</label><input id="pf-name" type="text" name="name" required maxlength="80" autocomplete="off" value="'+escapeHtml(v.name)+'" placeholder="Ex. Darth Vader"></div>'+
+      '</div>'+
+      '<p class="small pop-dupe" id="pf-dupe" hidden></p>'+
+      '<div class="field-grid">'+
+        '<div class="field"><label for="pf-series">Licence (optionnel)</label><input id="pf-series" type="text" name="series" maxlength="60" list="dl-pop-series" autocomplete="off" value="'+escapeHtml(v.series||'')+'" placeholder="Ex. Star Wars"></div>'+
+        '<div class="field"><label for="pf-note">Note (optionnel)</label><input id="pf-note" type="text" name="note" maxlength="120" value="'+escapeHtml(v.note||'')+'" placeholder="Ex. Exclusivité, édition limitée"></div>'+
+      '</div>'+
+      '<datalist id="dl-pop-series">'+seriesList.map(function(s){return '<option value="'+escapeHtml(s)+'">';}).join('')+'</datalist>'+
+      '<div class="field"><label>Photo</label><div class="pop-form-photo">'+
+        '<div id="pf-preview"></div>'+
+        '<div class="pop-form-photo-actions">'+
+          '<label class="btn btn-ghost btn-sm" style="cursor:pointer;">'+icon('image')+' Prendre ou choisir une photo'+
+            '<input type="file" id="pf-photo" accept="image/*" style="display:none;"></label>'+
+          '<button type="button" class="btn btn-ghost btn-sm" data-act="pop-photo-remove" id="pf-photo-remove">Retirer la photo</button>'+
+          '<a class="btn btn-ghost btn-sm" id="pf-search-link" target="_blank" rel="noopener noreferrer">'+icon('search')+' Chercher cette Pop en ligne</a>'+
+        '</div>'+
+      '</div></div>'+
+      '<div class="field"><label for="pf-photo-url">Ou lien d’une image (optionnel)</label><input id="pf-photo-url" type="url" name="photoUrl" maxlength="2000" autocomplete="off" value="'+escapeHtml(v.photoUrl||'')+'" placeholder="https://…"><span class="faint small">Sur une image trouvée en ligne : appui long, « Copier l’adresse de l’image », puis colle-la ici. Une photo prise ou choisie l’emporte sur le lien.</span></div>'+
+      '<div class="form-actions">'+
+        '<button type="submit" class="btn btn-primary">'+(editing?'Enregistrer':'Ajouter')+'</button>'+
+        '<button type="button" class="btn btn-ghost" data-act="toggle-pop-form">Annuler</button>'+
+      '</div>'+
+    '</form>';
+  renderPopPreview();
+  updatePopFormHints();
+}
+function renderPopPreview(){
+  var box = document.getElementById('pf-preview');
+  if(!box) return;
+  var editing = state.editPopId ? state.pops.find(function(p){return p.id===state.editPopId;}) : null;
+  var urlInput = document.getElementById('pf-photo-url');
+  var typedUrl = urlInput ? urlInput.value.trim() : '';
+  var photoId = (!popDraft.blob && !popDraft.remove && editing) ? editing.photoId : null;
+  var html;
+  if(popDraft.url) html = '<div class="pop-photo has-img"><img src="'+escapeHtml(popDraft.url)+'" alt="Aperçu de la photo"></div>';
+  else html = popPhotoHTML(photoId, validPhotoUrl(typedUrl) ? typedUrl : '');
+  box.innerHTML = html;
+  hydratePhotos(box);
+  var remove = document.getElementById('pf-photo-remove');
+  if(remove) remove.hidden = !(popDraft.blob || photoId);
+}
+function updatePopFormHints(){
+  var num = document.getElementById('pf-number'), name = document.getElementById('pf-name');
+  if(!num || !name) return;
+  var link = document.getElementById('pf-search-link');
+  var q = (name.value.trim()+' '+num.value.trim()).trim();
+  if(link){ link.href = popSearchUrl(q); link.hidden = !q; }
+  var dupe = document.getElementById('pf-dupe');
+  var same = samePopNumber(num.value, state.editPopId);
+  if(dupe){
+    dupe.hidden = !same.length;
+    dupe.textContent = same.length ? 'Déjà dans la liste : '+same.map(function(p){return '#'+p.number+' '+p.name+(p.status==='wanted'?' (recherchée)':'');}).join(', ') : '';
+  }
+}
+function submitPopForm(form){
+  var fd = new FormData(form);
+  var editId = form.getAttribute('data-edit-id');
+  var existing = editId ? state.pops.find(function(p){return p.id===editId;}) : null;
+  var data = {
+    number: String(fd.get('number')||'').trim().replace(/^#/,''),
+    name: String(fd.get('name')||'').trim(),
+    series: String(fd.get('series')||'').trim(),
+    note: String(fd.get('note')||'').trim(),
+    status: fd.get('status')==='wanted' ? 'wanted' : 'owned',
+    photoUrl: String(fd.get('photoUrl')||'').trim()
+  };
+  if(!validPop(data)) return;
+  var oldPhoto = existing ? existing.photoId : null;
+  if(popDraft.blob) data.photoId = addPhoto(popDraft.blob);
+  else data.photoId = popDraft.remove ? '' : (oldPhoto || '');
+  if(data.photoId) data.photoUrl = '';
+  if(oldPhoto && oldPhoto!==data.photoId) forgetPhoto(oldPhoto);
+  if(existing) updatePop(editId, data); else createPop(data);
+  closePopForm();
+  renderPopList();
+  renderPopSummary();
+}
+
 /* ---------- page Réglages ---------- */
 function renderSyncIndicator(){
   var chip = document.getElementById('sync-chip');
@@ -1477,23 +2028,24 @@ function renderSettingsPage(){
   c.innerHTML =
     '<div class="card card-pad settings-section">'+
       '<h3>Synchronisation entre appareils</h3>'+
-      '<p class="lead">Tes données sont enregistrées dans un fichier d’un dépôt GitHub privé, ce qui permet de les retrouver identiques sur ton iPhone et sur ton Mac. Le jeton reste sur cet appareil : il n’est envoyé qu’à GitHub.</p>'+
+      '<p class="lead">Tes données sont enregistrées dans un fichier d’un dépôt GitHub privé, ce qui permet de les retrouver identiques sur ton iPhone et sur ton Mac. Les photos de la collection Pop sont rangées à côté, dans le dossier grand-livre-photos du même dépôt. Le jeton reste sur cet appareil : il n’est envoyé qu’à GitHub.</p>'+
       '<div id="sync-panel"></div>'+
     '</div>'+
     '<div class="card card-pad settings-section">'+
       '<h3>Sauvegarde manuelle</h3>'+
-      '<p class="lead">Un fichier de secours à garder de côté, indépendamment de GitHub. L’import remplace les données locales et propage les changements si la synchronisation est active.</p>'+
+      '<p class="lead">Un fichier de secours à garder de côté, indépendamment de GitHub. L’import remplace les données locales et propage les changements si la synchronisation est active. Les photos de la collection Pop ne sont pas dans ce fichier : elles restent sur GitHub et sur cet appareil.</p>'+
       '<div class="form-actions" style="flex-wrap:wrap;">'+
         '<button class="btn btn-ghost" data-act="export-json">Exporter mes données (JSON)</button>'+
         '<label class="btn btn-ghost" id="import-label" style="cursor:pointer;">Importer des données'+
           '<input type="file" accept="application/json,.json" id="import-file-input" style="display:none;">'+
         '</label>'+
         '<button class="btn btn-ghost" data-act="export-csv">Exporter en CSV</button>'+
+        '<button class="btn btn-ghost" data-act="export-pops-csv">Exporter la collection Pop (CSV)</button>'+
       '</div>'+
     '</div>'+
     '<div class="card card-pad settings-section">'+
       '<h3>Sur cet appareil</h3>'+
-      '<p class="lead" style="margin-bottom:0;">'+state.accounts.length+' compte(s), '+state.transactions.length+' transaction(s), '+state.recurring.length+' récurrence(s) enregistrés dans ce navigateur.</p>'+
+      '<p class="lead" style="margin-bottom:0;">'+state.accounts.length+' compte(s), '+state.transactions.length+' transaction(s), '+state.recurring.length+' récurrence(s), '+state.charges.length+' ligne(s) Compte Charge et '+state.pops.length+' Pop enregistrés dans ce navigateur.</p>'+
     '</div>';
   renderSyncPanel();
 }
@@ -1642,11 +2194,12 @@ function mergeRemoteIntoState(remote){
   var t=mergeCollection(state.transactions,tombs('transactions'),remote.transactions,rTomb.transactions);
   var r=mergeCollection(state.recurring,tombs('recurring'),remote.recurring,rTomb.recurring);
   var ch=mergeCollection(state.charges,tombs('charges'),remote.charges,rTomb.charges);
-  var merged=removeDeletedAccountLinks({accounts:a.records,transactions:t.records,recurring:r.records,charges:ch.records,
-    tombstones:{accounts:a.tombstones,transactions:t.tombstones,recurring:r.tombstones,charges:ch.tombstones},budget:mergeBudget(state.budget,remote.budget)});
+  var po=mergeCollection(state.pops,tombs('pops'),remote.pops,rTomb.pops);
+  var merged=removeDeletedAccountLinks({accounts:a.records,transactions:t.records,recurring:r.records,charges:ch.records,pops:po.records,
+    tombstones:{accounts:a.tombstones,transactions:t.tombstones,recurring:r.tombstones,charges:ch.tombstones,pops:po.tombstones},budget:mergeBudget(state.budget,remote.budget)});
   merged=validatePayload(merged,true);
   state.accounts=merged.accounts;state.transactions=merged.transactions.sort(function(x,y){return x.date<y.date?1:(x.date>y.date?-1:0);});
-  state.recurring=merged.recurring;state.charges=merged.charges;state.tombstones=merged.tombstones;state.budget=merged.budget;
+  state.recurring=merged.recurring;state.charges=merged.charges;state.pops=merged.pops;state.tombstones=merged.tombstones;state.budget=merged.budget;
 }
 
 /* Empreinte stable d'un jeu de données : sert à savoir si la fusion a changé
@@ -1666,6 +2219,7 @@ function signature(payload){
     collSig(payload.transactions, tb.transactions),
     collSig(payload.recurring, tb.recurring),
     collSig(payload.charges, tb.charges),
+    collSig(payload.pops, tb.pops),
     bts, btar
   ].join('||');
 }
@@ -1734,9 +2288,9 @@ function ghHeaders(extra){
   if(extra) Object.keys(extra).forEach(function(k){ h[k] = extra[k]; });
   return h;
 }
-function contentsUrl(){
+function contentsUrl(path){
   return GH_API+'/repos/'+encodeURIComponent(sync.owner)+'/'+encodeURIComponent(sync.repo)+
-         '/contents/'+sync.path.split('/').map(encodeURIComponent).join('/');
+         '/contents/'+(path||sync.path).split('/').map(encodeURIComponent).join('/');
 }
 /* Encodage base64 qui respecte les accents (Épargne, Santé…). */
 function encodeB64(str){
@@ -1848,6 +2402,10 @@ function syncNow(manual, attempt){
     saveSyncSettings();
     setSyncStatus('idle', '');
     if(manual) showToast(res.pushed ? 'Synchronisé avec GitHub.' : 'Déjà à jour.');
+    /* les photos suivent les données : envois en attente, puis ménage local */
+    photoMissing = Object.create(null);
+    flushPhotoQueue();
+    prunePhotos();
     /* une saisie arrivée pendant l'envoi : on repart pour un tour */
     if(sync.dirty && attempt < 3) return syncNow(false, attempt+1);
     return true;
@@ -1965,13 +2523,14 @@ function importDataFromFile(file){
         transactions: Array.isArray(data.transactions) ? data.transactions : [],
         recurring: Array.isArray(data.recurring) ? data.recurring : [],
         charges: Array.isArray(data.charges) ? data.charges : [],
+        pops: Array.isArray(data.pops) ? data.pops : [],
         budget: (data.budget && typeof data.budget==='object') ? data.budget : {targets:{}},
         tombstones: (data.tombstones && typeof data.tombstones==='object') ? data.tombstones : null
       };
       if(!imp.budget.targets) imp.budget.targets = {};
       pendingImport = imp;
       document.getElementById('import-summary').textContent =
-        imp.accounts.length+' compte(s), '+imp.transactions.length+' transaction(s), '+imp.recurring.length+' récurrence(s), '+imp.charges.length+' ligne(s) Compte Charge trouvés dans ce fichier.';
+        imp.accounts.length+' compte(s), '+imp.transactions.length+' transaction(s), '+imp.recurring.length+' récurrence(s), '+imp.charges.length+' ligne(s) Compte Charge, '+imp.pops.length+' Pop trouvés dans ce fichier.';
       document.getElementById('import-confirm').hidden = false;
     } catch(err){
       showToast("Impossible de lire ce fichier : "+err.message, true);
@@ -1990,7 +2549,7 @@ function applyPendingImport(){
      qui existait ici sans figurer dans le fichier — sans quoi la synchro
      rapatrierait depuis GitHub les lignes que l'import voulait justement
      remplacer. */
-  ['accounts','transactions','recurring','charges'].forEach(function(kind){
+  ['accounts','transactions','recurring','charges','pops'].forEach(function(kind){
     var importedIds = {};
     pendingImport[kind].forEach(function(r){ r.updatedAt = t; if(r.id) importedIds[r.id] = 1; });
     var graveyard = tombs(kind);
@@ -2007,6 +2566,7 @@ function applyPendingImport(){
   state.transactions = pendingImport.transactions;
   state.recurring = pendingImport.recurring;
   state.charges = pendingImport.charges;
+  state.pops = pendingImport.pops;
   var previousCategories=Object.keys(state.budget.targets||{}).concat(Object.keys(state.budget.ts||{}));
   state.budget = pendingImport.budget;
   if(!state.budget.ts) state.budget.ts = {};
@@ -2031,7 +2591,7 @@ function applyPendingImport(){
 var motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
 var currentTransition = null;
 var transitionQueue = Promise.resolve();
-var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby']);
+var animatedActions = new Set(['nav','quick-add','toggle-theme','toggle-account-form','toggle-tx-form','toggle-recurring-form','edit-account','edit-tx','edit-recurring','charge-edit','charge-cancel','rec-groupby','toggle-pop-form','edit-pop','pop-add-from-search']);
 
 var startupAnimation = null;
 
@@ -2088,6 +2648,7 @@ document.addEventListener('click', function(e){
 function handleAction(btn, act){
   if(act==='toggle-theme'){ state.theme = state.theme==='dark' ? 'light' : 'dark'; applyTheme(); saveUiPrefs(); }
   else if(act==='nav'){ navigateTo(btn.getAttribute('data-page')); }
+  else if(act==='quick-add' && state.page==='pops'){ openPopForm(null, null); }
   else if(act==='quick-add'){ navigateTo('transactions'); state.showTxForm = true; state.editTxId = null; renderPageShell(); document.getElementById('tf-amount') && document.getElementById('tf-amount').focus(); }
   else if(act==='toggle-account-form'){ state.showAccountForm = !state.showAccountForm; if(!state.showAccountForm) state.editAccountId=null; renderAccountForm(); }
   else if(act==='toggle-tx-form'){ state.showTxForm = !state.showTxForm; if(!state.showTxForm) state.editTxId=null; renderTransactionForm(); }
@@ -2113,6 +2674,16 @@ function handleAction(btn, act){
   }
   else if(act==='export-json'){ exportData(); }
   else if(act==='export-csv'){ exportCSV(); }
+  else if(act==='export-pops-csv'){ exportPopsCSV(); }
+  else if(act==='toggle-pop-form'){ if(state.showPopForm){ closePopForm(); } else { openPopForm(null, null); } }
+  else if(act==='edit-pop'){ openPopForm(btn.getAttribute('data-id'), null); }
+  else if(act==='pop-add-from-search'){ openPopForm(null, prefillFromSearch(state.popFilters.search)); }
+  else if(act==='pop-photo-remove'){ clearPopDraft(); popDraft.remove = true; renderPopPreview(); }
+  else if(act==='del-pop'){
+    var pid = btn.getAttribute('data-id'); var pkey = 'pop:'+pid;
+    if(armed.has(pkey)){ armed.delete(pkey); deletePop(pid); renderPopList(); renderPopSummary(); }
+    else { armed.add(pkey); renderPopList(); setTimeout(function(){ if(armed.has(pkey)){ armed.delete(pkey); renderPopList(); } }, 4000); }
+  }
   else if(act==='backup-now'){ exportData(); }
   else if(act==='backup-later'){ snoozeBackupReminder(); }
   else if(act==='charge-edit'){
@@ -2164,6 +2735,18 @@ document.addEventListener('change', function(e){
     importDataFromFile(f);
     e.target.value = '';
   }
+  if(e.target.id==='pf-photo'){
+    var file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    compressPhoto(file).then(function(blob){
+      clearPopDraft();
+      popDraft.blob = blob;
+      popDraft.url = URL.createObjectURL(blob);
+      renderPopPreview();
+    }).catch(function(err){ showToast('Impossible d’utiliser cette photo : '+err.message, true); });
+  }
+  if(e.target.id==='pop-status-filter'){ state.popFilters.status = e.target.value; renderPopList(); }
 });
 
 document.addEventListener('submit', function(e){
@@ -2191,6 +2774,11 @@ document.addEventListener('submit', function(e){
     state.editChargeId = null;
     renderChargesCard();
     renderChargesSummary();
+    return;
+  }
+  if(form.id==='pop-form'){
+    e.preventDefault();
+    submitPopForm(form);
     return;
   }
   if(form.id==='sync-form'){
@@ -2291,6 +2879,8 @@ document.addEventListener('change', function(e){
 });
 document.addEventListener('input', function(e){
   if(e.target.id==='f-search'){ state.txFilters.search = e.target.value; renderTransactionsTable(); }
+  if(e.target.id==='pop-search'){ state.popFilters.search = e.target.value; renderPopList(); }
+  if(e.target.id==='pf-number' || e.target.id==='pf-name' || e.target.id==='pf-photo-url'){ updatePopFormHints(); if(e.target.id==='pf-photo-url') renderPopPreview(); }
 });
 
 /* ---------- hors-ligne : indicateur ---------- */
@@ -2315,12 +2905,13 @@ document.addEventListener('visibilitychange', function(){
 });
 
 /* ---------- boot ---------- */
-document.querySelector('[data-act="quick-add"]').innerHTML = icon('plus')+' Nouvelle transaction';
+loadPhotoQueue();
 loadSyncSettings();
 loadUiPrefs();
 applyTheme();
 loadState();
 materializeRecurring();
+prunePhotos();
 renderNav();
 renderPageShell();
 renderBackupBanner();
