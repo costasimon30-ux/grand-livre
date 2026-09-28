@@ -106,3 +106,31 @@ test('photos removed before upload are never deleted remotely; uploaded ones are
  c.forgetPhoto('sent');assert.deepEqual(plain(c.photoQueue.remove),['sent']);
  c.sync.path='data/grand-livre.json';assert.equal(c.photoPath('abc'),'data/grand-livre-photos/abc.jpg');
 });
+test('catalogue search matches names and licences, ignores accents and cannot match numbers',()=>{
+ const c=setup(),catalog=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'pop-catalog.json'),'utf8'));
+ const index=c.catalogIndex(catalog);assert.ok(index.length>10000);
+ const spider=c.searchCatalog(index,'spider-man',12);assert.equal(spider.length,12);assert.ok(spider.every(r=>/spider-man/i.test(r.name+' '+r.series)));assert.ok(/^https:\/\//.test(spider[0].image));
+ assert.ok(c.searchCatalog(index,'vader star wars',5).length>0);
+ assert.deepEqual(plain(c.searchCatalog(index,'1362',5)),[]);assert.deepEqual(plain(c.searchCatalog(index,'a',5)),[]);
+ const tiny=c.catalogIndex({imageBase:'https://x/',items:[['Élodie','Disney','e.jpg'],['Groot','Marvel','']]});
+ assert.equal(c.searchCatalog(tiny,'elodie',5)[0].image,'https://x/e.jpg');assert.equal(c.searchCatalog(tiny,'groot marvel',5)[0].image,'');
+});
+test('eBay relay parses listings, filters other numbers and enforces its allowed origin',async()=>{
+ const relay=await import('./relay/ebay-relay.mjs');
+ assert.deepEqual(relay.parseListing('Funko Pop! Marvel Spider-Man #1362 Vinyl Figure NEW','1362'),{number:'1362',name:'Marvel Spider-Man'});
+ assert.deepEqual(relay.parseListing('Funko POP Spider-Man 1362 w/ protector','1362'),{number:'1362',name:'Spider-Man'});
+ const items=[{title:'Funko Pop! Marvel Spider-Man #1362',image:{imageUrl:'https://i.ebayimg.com/a.jpg'}},{title:'Funko Pop Marvel Spider-Man #1362 NIB'},{title:'Funko Pop Hulk #1363'},{title:'Funko Pop!'}];
+ const out=relay.summarize(items,'1362');assert.equal(out.length,1);assert.equal(out[0].image,'https://i.ebayimg.com/a.jpg');
+ const calls=[];const realFetch=global.fetch;
+ global.fetch=async(url,opts={})=>{calls.push(String(url));if(String(url).includes('oauth2'))return new Response(JSON.stringify({access_token:'tok',expires_in:7200}));assert.equal(opts.headers.Authorization,'Bearer tok');return new Response(JSON.stringify({itemSummaries:items}));};
+ try{
+  const env={EBAY_CLIENT_ID:'id',EBAY_CLIENT_SECRET:'secret',ALLOWED_ORIGIN:'https://app.example/'};
+  const denied=await relay.default.fetch(new Request('https://relay/?q=1362',{headers:{Origin:'https://evil.example'}}),env);assert.equal(denied.status,403);
+  const ok=await relay.default.fetch(new Request('https://relay/?q=%231362',{headers:{Origin:'https://app.example'}}),env);assert.equal(ok.status,200);assert.equal(ok.headers.get('Access-Control-Allow-Origin'),'https://app.example');
+  assert.equal((await ok.json()).results[0].number,'1362');
+  await relay.default.fetch(new Request('https://relay/?q=groot',{headers:{Origin:'https://app.example'}}),env);
+  assert.equal(calls.filter(u=>u.includes('oauth2')).length,1,'token reused');assert.ok(calls.some(u=>u.includes('q=funko+pop+1362')));
+  assert.equal((await relay.default.fetch(new Request('https://relay/?q=x',{headers:{Origin:'https://app.example'}}),env)).status,400);
+  assert.equal((await relay.default.fetch(new Request('https://relay/?q=groot',{headers:{Origin:'https://app.example'}}),{ALLOWED_ORIGIN:'https://app.example'})).status,500);
+ }finally{global.fetch=realFetch;}
+});
