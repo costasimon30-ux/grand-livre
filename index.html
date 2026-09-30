@@ -103,7 +103,7 @@
   .hero-accounts{display:flex;flex-wrap:wrap;gap:12px 24px;padding-top:20px;margin-top:12px;border-top:1px solid var(--line);}
   .acc-pill{display:flex;align-items:center;gap:7px;font-size:12px;}
   .dot{width:7px;height:7px;border-radius:50%;flex:none;}
-  .stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:16px;}
+  .stat-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:16px;}
   .stat-tile{padding:24px;}
   .stat-value{font-size:26px;margin-top:12px;letter-spacing:-.03em;}
   .stat-tile.income .stat-value,.amt.pos,.rec-amount.pos,.rec-account .mono.pos,.rec-group-total.pos,.charge-amount.pos{color:var(--forest);}
@@ -1037,7 +1037,6 @@ function renderDashboard(){
   var mk = currentMonthKey();
   var income = monthSum(mk,'income');
   var expense = monthSum(mk,'expense');
-  var net = income-expense;
   var catSpend = categorySpend(mk);
   var catEntries = Object.keys(catSpend).map(function(k){return [k,catSpend[k]];}).sort(function(a,b){return b[1]-a[1];}).slice(0,6);
   var maxCat = catEntries.length ? catEntries[0][1] : 1;
@@ -1057,7 +1056,6 @@ function renderDashboard(){
   html += '<div class="stat-row">'+
     '<div class="card stat-tile income"><div class="hero-label">Revenus ce mois-ci</div><div class="stat-value mono">+'+fmtMoney(income)+'</div></div>'+
     '<div class="card stat-tile expense"><div class="hero-label">Dépenses ce mois-ci</div><div class="stat-value mono">-'+fmtMoney(expense)+'</div></div>'+
-    '<div class="card stat-tile"><div class="hero-label">Solde du mois</div><div class="stat-value mono" style="color:'+(net>=0?'var(--forest)':'var(--clay)')+'">'+(net>=0?'+':'')+fmtMoney(net)+'</div></div>'+
   '</div>';
 
   html += forecastHTML();
