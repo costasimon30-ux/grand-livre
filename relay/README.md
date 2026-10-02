@@ -1,8 +1,8 @@
 # Relais de recherche eBay
 
-La recherche de l'onglet **Collection Pop** fonctionne sans configuration grâce au catalogue intégré (`pop-catalog.json`). Ce catalogue contient environ 10 500 Pop avec leur nom et leur photo, mais pas leur numéro, et il s'arrête en 2021.
+La recherche de l'onglet **Collection Pop** fonctionne sans configuration grâce au catalogue intégré (`pop-catalog.json`) : plus de 21 000 Pop, cherchables par nom, licence, **numéro** (« 1362 ») ou **code-barres**, avec les sorties jusqu'à 2025 environ. Voir la section « Catalogue » plus bas.
 
-Pour trouver une Pop **par son numéro** (« 1362 ») ou une **sortie récente**, l'app interroge les annonces eBay via ce relais. Tu l'installes une fois (environ 15 minutes, gratuit), puis tu colles son adresse dans Grand Livre.
+Ce relais est **facultatif** : il ajoute les annonces eBay, utiles pour les toutes dernières sorties que le catalogue n'a pas encore. Tu l'installes une fois (environ 15 minutes, gratuit), puis tu colles son adresse dans Grand Livre. Attention : en 2026, eBay refuse automatiquement beaucoup d'inscriptions au programme développeur, sans explication.
 
 Pourquoi un relais ? La clé eBay est secrète et ne doit jamais se trouver dans une page web. Le relais la garde et ne répond qu'à ton application.
 
@@ -40,4 +40,9 @@ Sur **chaque appareil**, ouvre **Réglages → Recherche de Pop en ligne**, coll
 - **Quotas** : eBay accorde 5 000 recherches par jour et Cloudflare 100 000 appels par jour. Le relais garde chaque recherche en cache une heure, et l'app attend une courte pause dans la frappe avant d'appeler.
 - **Qualité des résultats** : les suggestions viennent d'annonces, donc le nom proposé peut contenir un mot en trop (« Marvel Spider-Man »). Tu peux le corriger dans le formulaire avant d'ajouter.
 - **Mise à jour du relais** : si `ebay-relay.mjs` change, recolle son contenu dans l'éditeur Cloudflare.
-- **Catalogue** : `pop-catalog.json` est construit par `tools/build-pop-catalog.py` à partir de [kennymkchan/funko-pop-data](https://github.com/kennymkchan/funko-pop-data) (licence MIT, © 2020 Kenny Chan).
+- **Catalogue** : `pop-catalog.json` est construit par `tools/build-pop-catalog.py`, qui fusionne deux jeux de données ouverts sous licence MIT :
+  - [celticht32/funkodex-catalog](https://github.com/celticht32/funkodex-catalog) (© 2026 Chris Ahrendt) : numéros, codes-barres, années, une partie des photos ;
+  - [kennymkchan/funko-pop-data](https://github.com/kennymkchan/funko-pop-data) (© 2020 Kenny Chan) : photos manquantes et Pop absentes du premier.
+
+  Pour le régénérer : télécharge `funkodex_base_catalog.json` et `funko_pop.json` depuis ces deux dépôts, puis
+  `python3 tools/build-pop-catalog.py funkodex_base_catalog.json funko_pop.json pop-catalog.json`.

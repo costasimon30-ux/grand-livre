@@ -106,14 +106,31 @@ test('photos removed before upload are never deleted remotely; uploaded ones are
  c.forgetPhoto('sent');assert.deepEqual(plain(c.photoQueue.remove),['sent']);
  c.sync.path='data/grand-livre.json';assert.equal(c.photoPath('abc'),'data/grand-livre-photos/abc.jpg');
 });
-test('catalogue search matches names and licences, ignores accents and cannot match numbers',()=>{
+test('catalogue search matches names and licences, ignores accents and accepts version-1 files',()=>{
  const c=setup(),catalog=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'pop-catalog.json'),'utf8'));
- const index=c.catalogIndex(catalog);assert.ok(index.length>10000);
+ const index=c.catalogIndex(catalog);assert.ok(index.length>20000);
  const spider=c.searchCatalog(index,'spider-man',12);assert.equal(spider.length,12);assert.ok(spider.every(r=>/spider-man/i.test(r.name+' '+r.series)));assert.ok(/^https:\/\//.test(spider[0].image));
- assert.ok(c.searchCatalog(index,'vader star wars',5).length>0);
- assert.deepEqual(plain(c.searchCatalog(index,'1362',5)),[]);assert.deepEqual(plain(c.searchCatalog(index,'a',5)),[]);
+ assert.ok(c.searchCatalog(index,'vader star wars',5).length>0);assert.deepEqual(plain(c.searchCatalog(index,'a',5)),[]);
  const tiny=c.catalogIndex({imageBase:'https://x/',items:[['Élodie','Disney','e.jpg'],['Groot','Marvel','']]});
  assert.equal(c.searchCatalog(tiny,'elodie',5)[0].image,'https://x/e.jpg');assert.equal(c.searchCatalog(tiny,'groot marvel',5)[0].image,'');
+ assert.equal(c.searchCatalog(tiny,'groot',5)[0].number,'');
+});
+test('catalogue finds Pops by number, number plus name, and barcode',()=>{
+ const c=setup(),index=c.catalogIndex(JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'pop-catalog.json'),'utf8')));
+ const n=c.searchCatalog(index,'1362',12);assert.ok(n.length>=5);assert.ok(n.every(r=>r.number==='1362'));
+ assert.ok(n.some(r=>r.name==='Deadpool'));assert.deepEqual(plain(c.searchCatalog(index,'#1362',12)).map(r=>r.name),plain(n).map(r=>r.name));
+ const ariel=c.searchCatalog(index,'1362 ariel',12);assert.ok(ariel.length>=1);assert.ok(ariel.every(r=>r.number==='1362'&&/ariel/i.test(r.name)));
+ const byUpc=c.searchCatalog(index,n[0].upc,5);assert.equal(byUpc.length,1);assert.equal(byUpc[0].name,n[0].name);
+ const one=c.searchCatalog(index,'7',50);assert.ok(one.length>0);assert.ok(one.every(r=>r.number==='7'||/\b7\b/.test(r.name+' '+r.series)));
+ const tiny=c.catalogIndex({imageBase:'https://x/',items:[['Blade Runner 2049 K','Movies','','1234'],['Hulk','Marvel','','2049'],['Hulk 120','Marvel','','5']]});
+ assert.deepEqual(plain(c.searchCatalog(tiny,'2049',5)).map(r=>r.name),['Hulk','Blade Runner 2049 K']);
+ assert.deepEqual(plain(c.searchCatalog(tiny,'12',5)),[]);
+});
+test('a shared number alone does not mark another licence’s Pop as owned',()=>{
+ const c=setup();c.state.pops=[{id:'p',number:'1362',name:'Deadpool',series:'Deadpool & Wolverine',status:'owned',updatedAt:1}];
+ assert.equal(c.suggestionOwned({number:'1362',name:'Deadpool',series:'Deadpool & Wolverine'}),true);
+ assert.equal(c.suggestionOwned({number:'1362',name:'Ariel',series:'The Little Mermaid Live Action'}),false);
+ assert.equal(c.suggestionOwned({number:'',name:'deadpool',series:''}),true);
 });
 test('eBay relay parses listings, filters other numbers and enforces its allowed origin',async()=>{
  const relay=await import('./relay/ebay-relay.mjs');

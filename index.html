@@ -181,6 +181,8 @@
   .pop-actions{display:flex;justify-content:flex-end;gap:6px;padding:10px 12px 12px;}
   .pop-online{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:16px;}
   .pop-online p{flex-basis:100%;margin:0;}
+  /* une longue recherche (code-barres, nom à rallonge) passe à la ligne au lieu de déborder */
+  .pop-online .btn{white-space:normal;overflow-wrap:anywhere;max-width:100%;text-align:center;}
   .pop-section-title{margin:0 0 12px;font:10px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);}
   #pop-list+#pop-suggest:not(:empty){margin-top:24px;}
   .pop-suggest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr));gap:12px;}
@@ -1932,7 +1934,7 @@ function renderPopsPage(){
     '<div id="pop-summary"></div>'+
     '<div id="pop-form-slot"></div>'+
     '<div class="filters card card-pad">'+
-      '<input type="search" id="pop-search" placeholder="Numéro, nom, licence…" autocomplete="off" value="'+escapeHtml(state.popFilters.search)+'" aria-label="Rechercher une Pop">'+
+      '<input type="search" id="pop-search" placeholder="Numéro, nom, licence, code-barres…" autocomplete="off" value="'+escapeHtml(state.popFilters.search)+'" aria-label="Rechercher une Pop">'+
       '<select id="pop-status-filter" aria-label="Filtrer par statut">'+
         '<option value="all">Toutes</option>'+
         '<option value="owned"'+(state.popFilters.status==='owned'?' selected':'')+'>Dans la collection</option>'+
@@ -2003,7 +2005,7 @@ function renderPopForm(){
   if(!state.showPopForm){ slot.innerHTML = ''; return; }
   var editing = state.editPopId ? state.pops.find(function(p){return p.id===state.editPopId;}) : null;
   var pre = state.popPrefill || {};
-  var v = editing || {number:pre.number||'', name:pre.name||'', series:pre.series||'', note:'', status:'owned', photoUrl:pre.photoUrl||''};
+  var v = editing || {number:pre.number||'', name:pre.name||'', series:pre.series||'', note:pre.note||'', status:'owned', photoUrl:pre.photoUrl||''};
   var seriesList = uniq(state.pops.map(function(p){return p.series;}).filter(Boolean)).sort();
   slot.innerHTML =
     '<form class="card form-card" id="pop-form" data-edit-id="'+(editing?editing.id:'')+'">'+
@@ -2097,9 +2099,10 @@ function submitPopForm(form){
 
 /* ---------- suggestions : catalogue intégré et relais eBay ----------
    Pendant la frappe, on propose des Pop à ajouter. Deux sources : un catalogue
-   ouvert embarqué (noms et photos, sans numéros, arrêté en 2021) et, si un
-   relais est configuré, les annonces eBay, qui donnent les numéros et les
-   sorties récentes. Choisir une suggestion préremplit le formulaire. */
+   ouvert embarqué (plus de 21 000 Pop, avec numéro, licence, année, photo et
+   code-barres quand les sources les donnent ; voir tools/build-pop-catalog.py)
+   et, si un relais est configuré, les annonces eBay pour les toutes dernières
+   sorties. Choisir une suggestion préremplit le formulaire. */
 var suggest = {
   query:'', seq:0, timer:null, controller:null,
   catalog:'idle', ebay:'idle', error:'',
@@ -2107,25 +2110,46 @@ var suggest = {
   catalogIndex:null, catalogPromise:null,
   cache:Object.create(null)       /* réponses eBay déjà reçues, par recherche */
 };
+/* Format 2 : [nom, licence, image, numéro, année, note, code-barres], les champs
+   vides de fin de ligne étant omis. Le format 1 n'avait que les trois premiers. */
 function catalogIndex(data){
   return (data.items||[]).map(function(r){
-    return {name:r[0], series:r[1]||'', image:r[2] ? data.imageBase+r[2] : '', source:'Catalogue', number:'',
-            key:normalizeSearch(r[0]+' '+(r[1]||''))};
+    return {name:r[0], series:r[1]||'', image:r[2] ? data.imageBase+r[2] : '', source:'Catalogue',
+            number:r[3]||'', year:r[4]||'', note:r[5]||'', upc:r[6]||'',
+            key:' '+normalizeSearch(r[0]+' '+(r[1]||''))+' '};
   });
 }
+/* Un mot fait de chiffres vaut pour le numéro de la Pop, ou pour un mot entier
+   du nom (« 2049 », « 13 »), jamais pour un morceau de mot. */
+function catalogWordMatches(item, w){
+  if(/^\d+$/.test(w)) return item.number===w || item.key.indexOf(' '+w+' ')!==-1;
+  return item.key.indexOf(w)!==-1;
+}
 function searchCatalog(index, query, limit){
-  var q = normalizeSearch(query).replace(/^#/,'');
-  /* le catalogue n'a pas de numéros : une recherche par numéro ne peut rien y trouver */
-  if(q.length<2 || /^\d+$/.test(q)) return [];
+  var q = normalizeSearch(query).replace(/^#/,'').replace(/\s+#/g,' ');
+  if(!q || (q.length<2 && !/^\d$/.test(q))) return [];
+  /* code-barres scanné ou tapé : correspondance exacte */
+  if(/^\d{12,13}$/.test(q)){
+    var bare = q.replace(/^0/,'');
+    return index.filter(function(item){ return item.upc && item.upc.replace(/^0/,'')===bare; }).slice(0, limit||12);
+  }
   var words = q.split(/\s+/);
+  var numbers = words.filter(function(w){ return /^\d+$/.test(w); });
   var hits = index.filter(function(item){
-    return words.every(function(w){ return item.key.indexOf(w)!==-1; });
+    return words.every(function(w){ return catalogWordMatches(item, w); });
   });
+  function rank(item){
+    if(numbers.length && numbers.indexOf(item.number)!==-1) return 0;
+    return normalizeSearch(item.name).indexOf(q)===0 ? 1 : 2;
+  }
   hits.sort(function(a,b){
-    var sa = normalizeSearch(a.name).indexOf(q)===0 ? 0 : 1, sb = normalizeSearch(b.name).indexOf(q)===0 ? 0 : 1;
-    return sa-sb || a.name.length-b.name.length || a.name.localeCompare(b.name,'fr');
+    return rank(a)-rank(b) ||
+      (numbers.length ? (b.year||'').localeCompare(a.year||'') : 0) ||
+      (a.image ? 0 : 1)-(b.image ? 0 : 1) ||
+      a.name.length-b.name.length || a.name.localeCompare(b.name,'fr');
   });
-  return hits.slice(0, limit||12);
+  /* un numéro est partagé par plusieurs licences : on en montre davantage */
+  return hits.slice(0, numbers.length && words.length===1 ? Math.max(limit||12, 30) : (limit||12));
 }
 function loadCatalog(){
   if(!suggest.catalogPromise){
@@ -2177,7 +2201,7 @@ function searchPopSuggestions(raw){
   suggest.query = q;
   suggest.catalogResults = [];
   suggest.ebayResults = [];
-  if(q.length<2){ suggest.catalog = suggest.ebay = 'idle'; renderPopSuggest(); return; }
+  if(q.length<2 && !/^\d$/.test(q)){ suggest.catalog = suggest.ebay = 'idle'; renderPopSuggest(); return; }
 
   if(suggest.catalogIndex){
     suggest.catalog = 'done';
@@ -2207,9 +2231,13 @@ function searchPopSuggestions(raw){
   }
   renderPopSuggest();
 }
+/* Plusieurs Pop partagent un numéro (une par licence) : il faut le même numéro
+   et, en plus, le même nom ou la même licence pour dire « déjà dans la liste ». */
 function suggestionOwned(r){
-  if(r.number) return samePopNumber(r.number, null).length>0;
-  var n = normalizeSearch(r.name);
+  var n = normalizeSearch(r.name), s = normalizeSearch(r.series);
+  if(r.number) return samePopNumber(r.number, null).some(function(p){
+    return normalizeSearch(p.name)===n || (!!s && normalizeSearch(p.series)===s) || (!s && !p.series);
+  });
   return state.pops.some(function(p){ return normalizeSearch(p.name)===n; });
 }
 function renderPopSuggest(){
@@ -2222,7 +2250,6 @@ function renderPopSuggest(){
   if(suggest.ebay==='loading') notes.push('Recherche sur eBay…');
   if(suggest.ebay==='error') notes.push('eBay indisponible : '+suggest.error);
   if(suggest.ebay==='offline') notes.push('Hors ligne : pas de recherche eBay.');
-  if(suggest.ebay==='off' && /^\d+$/.test(q)) notes.push('La recherche par numéro passe par eBay : ajoute l’adresse de ton relais dans Réglages.');
   if(suggest.catalog==='loading') notes.push('Chargement du catalogue…');
   if(suggest.catalog==='error') notes.push('Catalogue indisponible : il faut une connexion la première fois.');
   var busy = suggest.ebay==='loading' || suggest.catalog==='loading';
@@ -2239,7 +2266,8 @@ function renderPopSuggest(){
           '<span class="pop-body">'+
             (r.number ? '<span class="pop-number mono">#'+escapeHtml(r.number)+'</span>' : '')+
             '<span class="pop-name">'+escapeHtml(r.name)+'</span>'+
-            (r.series ? '<span class="faint small">'+escapeHtml(r.series)+'</span>' : '')+
+            (r.series || r.year ? '<span class="faint small">'+escapeHtml([r.series, r.year].filter(Boolean).join(' · '))+'</span>' : '')+
+            (r.note ? '<span class="faint small">'+escapeHtml(r.note)+'</span>' : '')+
             '<span class="pop-source">'+escapeHtml(r.source)+(owned ? ' · déjà dans la liste' : '')+'</span>'+
             '<span class="pop-suggest-add">'+icon('plus')+' Ajouter</span>'+
           '</span>'+
@@ -2327,7 +2355,7 @@ function renderSettingsPage(){
     '</div>'+
     '<div class="card card-pad settings-section">'+
       '<h3>Recherche de Pop en ligne</h3>'+
-      '<p class="lead">La recherche de l’onglet Collection Pop puise dans un catalogue intégré (10 500 Pop, noms et photos, arrêté en 2021). Pour trouver aussi les Pop par numéro et les sorties récentes, colle ici l’adresse de ton relais eBay. Elle reste sur cet appareil : à coller sur chacun.</p>'+
+      '<p class="lead">La recherche de l’onglet Collection Pop puise dans un catalogue intégré : plus de 21 000 Pop, cherchables par nom, licence, numéro ou code-barres, avec les sorties jusqu’à 2025. Facultatif : un relais eBay ajoute les toutes dernières sorties. Son adresse reste sur cet appareil, à coller sur chacun.</p>'+
       '<form id="pop-relay-form" class="form-actions" style="align-items:flex-end;">'+
         '<div class="field" style="flex:1 1 320px;margin:0;"><label for="pr-relay">Adresse du relais eBay</label>'+
           '<input id="pr-relay" name="relay" type="url" autocapitalize="none" autocorrect="off" spellcheck="false" value="'+escapeHtml(state.popRelay)+'" placeholder="https://grand-livre-pop.ton-compte.workers.dev"></div>'+
@@ -3027,7 +3055,7 @@ function handleAction(btn, act){
   else if(act==='pop-add-from-search'){ openPopForm(null, prefillFromSearch(state.popFilters.search)); }
   else if(act==='pop-suggest-pick'){
     var pick = suggest.results[Number(btn.getAttribute('data-idx'))];
-    if(pick) openPopForm(null, {number:pick.number, name:pick.name, series:pick.series, photoUrl:pick.image});
+    if(pick) openPopForm(null, {number:pick.number, name:pick.name, series:pick.series, note:pick.note||'', photoUrl:pick.image});
   }
   else if(act==='pop-relay-test'){ testPopRelay(); }
   else if(act==='pop-photo-remove'){ clearPopDraft(); popDraft.remove = true; renderPopPreview(); }
@@ -3267,6 +3295,16 @@ document.addEventListener('visibilitychange', function(){
 });
 
 /* ---------- boot ---------- */
+/* Photo de suggestion introuvable (lien mort chez l'hébergeur) : on montre
+   l'icône d'attente plutôt qu'une image cassée. */
+document.addEventListener('error', function(e){
+  var img = e.target;
+  if(!img || img.tagName!=='IMG' || !img.closest) return;
+  var frame = img.closest('.pop-suggest .pop-photo');
+  if(!frame) return;
+  frame.classList.remove('has-img');
+  img.remove();
+}, true);
 loadPhotoQueue();
 document.getElementById('settings-btn').innerHTML = icon('gear');
 document.getElementById('menu-btn').innerHTML = icon('menu');
